@@ -8,4 +8,13 @@ public class FileDto {
     public LocalDateTime modified;
     public Long size;
     public Long parentId;
+
+    public FileDto(String s, boolean b, LocalDateTime now) {
+        name = s;
+        isFolder = b;
+        modified = now;
+
+    }
+
+    public FileDto() {}
 }

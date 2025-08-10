@@ -1,6 +1,7 @@
 package com.filescloud.monolit.ui.view;
 
 
+import com.filescloud.monolit.service.MainService;
 import com.filescloud.monolit.ui.components.AppNavbarComponent;
 import com.filescloud.monolit.ui.components.FileManagerComponent;
 import com.vaadin.flow.component.Component;
@@ -11,7 +12,11 @@ import com.vaadin.flow.router.Route;
 
 @Route("/filestorage")
 public class FileStorageView extends AppLayout {
-    public FileStorageView() {
+
+    MainService mainService;
+
+    public FileStorageView(MainService mainService) {
+        this.mainService = mainService;
         addToNavbar(new DrawerToggle());
         addToDrawer(new AppNavbarComponent());
         setContent(createMainContent());
@@ -24,7 +29,7 @@ public class FileStorageView extends AppLayout {
         content.setPadding(false);
 
         // Добавляем наш компонент управления файлами
-        FileManagerComponent fileManager = new FileManagerComponent();
+        FileManagerComponent fileManager = new FileManagerComponent(mainService);
         content.add(fileManager);
         content.setFlexGrow(1, fileManager);
 

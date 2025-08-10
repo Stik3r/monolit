@@ -12,8 +12,11 @@ import java.util.List;
 @Service
 public class FileStorageService {
 
-    @Autowired
-    private FileRepository fileRepository;
+    private final FileRepository fileRepository;
+
+    FileStorageService(FileRepository fileRepository) {
+        this.fileRepository = fileRepository;
+    }
 
     public List<FileDto> getFiles(Long parentId) {
         List<File> files;

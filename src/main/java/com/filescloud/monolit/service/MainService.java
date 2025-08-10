@@ -11,7 +11,6 @@ public class MainService {
 
     FileStorageService fileStorageService;
 
-    @Autowired
     public MainService(FileStorageService fileStorageService) {
         this.fileStorageService = fileStorageService;
     }

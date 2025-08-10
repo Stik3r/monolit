@@ -1,6 +1,7 @@
 package com.filescloud.monolit.ui.components;
 
 import com.filescloud.monolit.models.dtos.FileDto;
+import com.filescloud.monolit.service.FileStorageService;
 import com.filescloud.monolit.service.MainService;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
@@ -14,7 +15,9 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -24,24 +27,19 @@ public class FileManagerComponent extends Div {
     Grid<FileDto> grid;
     List<FileDto> items;
 
-    @Autowired
     MainService mainService;
 
-    public FileManagerComponent() {
+    public FileManagerComponent(MainService mainService) {
+        this.mainService = mainService;
         setSizeFull();
-
-        /*H1Component title = new H1Component("Файлы");
-        title.getStyle().set("color", "var(--lumo-primary-color)");
-        title.getStyle().set("font-size", "var(--lumo-font-size-xxl)");
-        add(title);*/
         // Инициализация тестовых данных
-        /*items = new ArrayList<>();
-        items.add(new FileDto("Документы", true, LocalDateTime.now(), "-"));
-        items.add(new FileDto("Изображения", true, LocalDateTime.now(), "-"));
-        items.add(new FileDto("report.pdf", false, LocalDateTime.now(), "2.4 MB"));
-        items.add(new FileDto("presentation.pptx", false, LocalDateTime.now(), "5.1 MB"));*/
+        items = new ArrayList<>();
+        items.add(new FileDto("Документы", true, LocalDateTime.now()));
+        items.add(new FileDto("Изображения", true, LocalDateTime.now()));
+        items.add(new FileDto("report.pdf", false, LocalDateTime.now()));
+        items.add(new FileDto("presentation.pptx", false, LocalDateTime.now()));
 
-        items = mainService.getFiles(null);
+        //items = mainService.getFiles(null);
 
         createGrid();
         add(grid);
