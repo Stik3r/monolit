@@ -39,7 +39,7 @@ public class FileManagerComponent extends Div {
         items.add(new FileDto("report.pdf", false, LocalDateTime.now()));
         items.add(new FileDto("presentation.pptx", false, LocalDateTime.now()));
 
-        //items = mainService.getFiles(null);
+        items = mainService.getFiles(null);
 
         createGrid();
         add(grid);
