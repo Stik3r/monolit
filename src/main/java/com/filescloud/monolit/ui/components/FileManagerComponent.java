@@ -1,7 +1,6 @@
 package com.filescloud.monolit.ui.components;
 
 import com.filescloud.monolit.models.dtos.FileDto;
-import com.filescloud.monolit.service.FileStorageService;
 import com.filescloud.monolit.service.MainService;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
@@ -12,12 +11,10 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.spring.annotation.UIScope;
 import com.vaadin.flow.theme.lumo.LumoUtility;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.io.File;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -33,16 +30,22 @@ public class FileManagerComponent extends Div {
         this.mainService = mainService;
         setSizeFull();
         // Инициализация тестовых данных
-        items = new ArrayList<>();
+        /*items = new ArrayList<>();
         items.add(new FileDto("Документы", true, LocalDateTime.now()));
         items.add(new FileDto("Изображения", true, LocalDateTime.now()));
         items.add(new FileDto("report.pdf", false, LocalDateTime.now()));
-        items.add(new FileDto("presentation.pptx", false, LocalDateTime.now()));
+        items.add(new FileDto("presentation.pptx", false, LocalDateTime.now()));*/
 
         items = mainService.getFiles(null);
 
         createGrid();
         add(grid);
+
+        UploadArea uploadArea = new UploadArea(getUploadFolder());
+        uploadArea.getUploadField().addSucceededListener(e -> {
+            uploadArea.hideErrorField();
+        });
+        add(uploadArea);
     }
 
     private void createGrid() {
@@ -77,7 +80,7 @@ public class FileManagerComponent extends Div {
 
         // Колонка с датой изменения
         grid.addColumn(item ->
-                DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").format(item.modified))
+                        DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").format(item.modified))
                 .setHeader("Изменен")
                 .setWidth("12em");
 
@@ -104,10 +107,19 @@ public class FileManagerComponent extends Div {
                 LumoUtility.BorderRadius.MEDIUM
         );
 
+        grid.setHeight("75%");
     }
 
     public void setItems(List<FileDto> items) {
         this.items = items;
         grid.setItems(items);
+    }
+
+    private static File getUploadFolder() {
+        File folder = new File("uploaded-files");
+        if (!folder.exists()) {
+            folder.mkdirs();
+        }
+        return folder;
     }
 }
