@@ -25,13 +25,14 @@ import java.util.List;
 public class FileManagerComponent extends Div {
 
     Grid<FileDto> grid;
-    List<FileDto> items;
 
-    MainService mainService;
+
+    private final MainService mainService;
 
     public FileManagerComponent(MainService mainService) {
         this.mainService = mainService;
         setSizeFull();
+        List<FileDto> items = new ArrayList<>();
         // Инициализация тестовых данных
         items = new ArrayList<>();
         items.add(new FileDto("Документы", true, LocalDateTime.now()));
@@ -39,13 +40,13 @@ public class FileManagerComponent extends Div {
         items.add(new FileDto("report.pdf", false, LocalDateTime.now()));
         items.add(new FileDto("presentation.pptx", false, LocalDateTime.now()));
 
-        //items = mainService.getFiles(null);
+        items = this.mainService.getFiles(null);
 
-        createGrid();
+        createGrid(items);
         add(grid);
     }
 
-    private void createGrid() {
+    private void createGrid(List<FileDto> items) {
         grid = new Grid<>();
         grid.setItems(items);
         grid.setSelectionMode(Grid.SelectionMode.SINGLE);
@@ -53,15 +54,15 @@ public class FileManagerComponent extends Div {
 
         // Колонка с иконкой и названием
         grid.addComponentColumn(item -> {
-            Icon icon = item.isFolder
+            Icon icon = item.isFolder()
                     ? VaadinIcon.FOLDER.create()
                     : VaadinIcon.FILE.create();
 
             icon.setColor(
-                    item.isFolder ? "#1976D2" : "#757575"
+                    item.isFolder() ? "#1976D2" : "#757575"
             );
 
-            Span name = new Span(item.name);
+            Span name = new Span(item.getName());
             name.addClassNames(
                     LumoUtility.Margin.Left.SMALL,
                     LumoUtility.FontSize.MEDIUM
@@ -77,12 +78,12 @@ public class FileManagerComponent extends Div {
 
         // Колонка с датой изменения
         grid.addColumn(item ->
-                DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").format(item.modified))
+                        DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").format(item.getModified()))
                 .setHeader("Изменен")
                 .setWidth("12em");
 
         // Колонка с размером
-        grid.addColumn(item -> item.size)
+        grid.addColumn(FileDto::getSize)
                 .setHeader("Размер")
                 .setWidth("8em")
                 .addClassNames(
@@ -92,9 +93,9 @@ public class FileManagerComponent extends Div {
 
         // Обработка клика по папке
         grid.addItemClickListener(event -> {
-            if (event.getItem().isFolder) {
+            if (event.getItem().isFolder()) {
                 // Логика перехода в папку
-                Notification.show("Открываем папку: " + event.getItem().name);
+                Notification.show("Открываем папку: " + event.getItem().getName());
             }
         });
 
@@ -104,10 +105,5 @@ public class FileManagerComponent extends Div {
                 LumoUtility.BorderRadius.MEDIUM
         );
 
-    }
-
-    public void setItems(List<FileDto> items) {
-        this.items = items;
-        grid.setItems(items);
     }
 }

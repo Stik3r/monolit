@@ -13,7 +13,7 @@ import com.vaadin.flow.router.Route;
 @Route("/filestorage")
 public class FileStorageView extends AppLayout {
 
-    MainService mainService;
+    private final MainService mainService;
 
     public FileStorageView(MainService mainService) {
         this.mainService = mainService;

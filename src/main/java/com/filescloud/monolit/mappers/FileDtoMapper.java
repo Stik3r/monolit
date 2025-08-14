@@ -8,11 +8,11 @@ public class FileDtoMapper {
     public static FileDto toFileDto(File file) {
         FileDto fileDto = new FileDto();
 
-        fileDto.name = file.fileName;
-        fileDto.isFolder = file.isFolder;
-        fileDto.size = file.fileSize;
-        fileDto.parentId = file.parentId;
-        fileDto.modified = file.modified;
+        fileDto.setName(file.fileName);
+        fileDto.setFolder(file.isFolder);
+        fileDto.setSize(file.fileSize);
+        fileDto.setParentId(file.parentId);
+        fileDto.setModified(file.modified);
 
         return fileDto;
     }
