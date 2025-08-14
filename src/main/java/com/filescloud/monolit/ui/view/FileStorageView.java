@@ -28,7 +28,7 @@ public class FileStorageView extends AppLayout {
         content.setSizeFull();
         content.setPadding(false);
 
-        // Добавляем наш компонент управления файлами
+
         FileManagerComponent fileManager = new FileManagerComponent(mainService);
         content.add(fileManager);
         content.setFlexGrow(1, fileManager);
