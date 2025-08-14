@@ -1,7 +1,6 @@
 package com.filescloud.monolit.ui.components;
 
 import com.filescloud.monolit.models.dtos.FileDto;
-import com.filescloud.monolit.service.FileStorageService;
 import com.filescloud.monolit.service.MainService;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Div;
@@ -12,9 +11,9 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.spring.annotation.UIScope;
 import com.vaadin.flow.theme.lumo.LumoUtility;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -44,6 +43,12 @@ public class FileManagerComponent extends Div {
 
         createGrid(items);
         add(grid);
+
+        UploadArea uploadArea = new UploadArea(getUploadFolder());
+        uploadArea.getUploadField().addSucceededListener(e -> {
+            uploadArea.hideErrorField();
+        });
+        add(uploadArea);
     }
 
     private void createGrid(List<FileDto> items) {
@@ -105,5 +110,14 @@ public class FileManagerComponent extends Div {
                 LumoUtility.BorderRadius.MEDIUM
         );
 
+        grid.setHeight("75%");
+    }
+
+    private static File getUploadFolder() {
+        File folder = new File("uploaded-files");
+        if (!folder.exists()) {
+            folder.mkdirs();
+        }
+        return folder;
     }
 }
