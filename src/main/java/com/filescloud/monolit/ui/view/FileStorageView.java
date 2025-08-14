@@ -13,7 +13,7 @@ import com.vaadin.flow.router.Route;
 @Route("/filestorage")
 public class FileStorageView extends AppLayout {
 
-    MainService mainService;
+    private final MainService mainService;
 
     public FileStorageView(MainService mainService) {
         this.mainService = mainService;
@@ -28,7 +28,7 @@ public class FileStorageView extends AppLayout {
         content.setSizeFull();
         content.setPadding(false);
 
-        // Добавляем наш компонент управления файлами
+
         FileManagerComponent fileManager = new FileManagerComponent(mainService);
         content.add(fileManager);
         content.setFlexGrow(1, fileManager);

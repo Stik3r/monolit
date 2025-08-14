@@ -4,7 +4,6 @@ import com.filescloud.monolit.dao.FileRepository;
 import com.filescloud.monolit.mappers.FileDtoMapper;
 import com.filescloud.monolit.models.dtos.FileDto;
 import com.filescloud.monolit.models.entity.File;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
