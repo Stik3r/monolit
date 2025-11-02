@@ -27,4 +27,8 @@ public class File {
 
     @Column(name = "modified")
     public LocalDateTime modified;
+
+    public boolean isFolder() {
+        return isFolder;
+    }
 }
