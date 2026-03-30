@@ -11,6 +11,8 @@ import com.vk.api.sdk.objects.photos.responses.PhotoUploadResponse;
 import com.vk.api.sdk.objects.photos.responses.SaveMessagesPhotoResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.monolites.monolit.model.exception.SendMessageException;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.security.SecureRandom;
@@ -20,6 +22,7 @@ import java.util.Map;
 import java.util.Random;
 
 @Slf4j
+@Service
 public class VKService {
 
     private static final Random RANDOM = new SecureRandom();
@@ -28,11 +31,14 @@ public class VKService {
     private final GroupActor actor;
     private final long userId;
 
-    public VKService(String accessToken, long groupId, long userId) {
+    public VKService(
+            @Value("${VK_GROUP_TOKEN}") String accessToken,
+            @Value("${VK_GROUP_ID}") String groupId,
+            @Value("${VK_MY_ID}") String userId) {
         TransportClient transportClient = new HttpTransportClient();
         vk = new VkApiClient(transportClient);
-        actor = new GroupActor(groupId, accessToken);
-        this.userId = userId;
+        actor = new GroupActor(Long.parseLong(groupId.trim()), accessToken.trim());
+        this.userId = Long.parseLong(userId.trim());
     }
 
     public void sendMessage(String message) {
