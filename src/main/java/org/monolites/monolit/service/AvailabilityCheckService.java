@@ -15,10 +15,7 @@ public class AvailabilityCheckService {
         try {
             InetAddress address = InetAddress.getByName(host);
 
-            if (!address.isReachable(5000)){
-                return false;
-            }
-            return true;
+            return address.isReachable(5000);
         }
         catch (Exception e) {
             log.error("Ошибка при проверке хоста {}", e.getMessage());
