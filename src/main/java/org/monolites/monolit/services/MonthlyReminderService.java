@@ -1,4 +1,4 @@
-package org.monolites.monolit.service;
+package org.monolites.monolit.services;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

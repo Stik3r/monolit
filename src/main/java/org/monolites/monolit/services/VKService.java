@@ -1,11 +1,13 @@
-package org.monolites.monolit.service;
+package org.monolites.monolit.services;
 
 import com.vk.api.sdk.client.TransportClient;
 import com.vk.api.sdk.client.VkApiClient;
 import com.vk.api.sdk.client.actors.GroupActor;
+import com.vk.api.sdk.events.longpoll.GroupLongPollApi;
 import com.vk.api.sdk.exceptions.ApiException;
 import com.vk.api.sdk.exceptions.ClientException;
 import com.vk.api.sdk.httpclient.HttpTransportClient;
+import com.vk.api.sdk.objects.groups.responses.GetLongPollServerResponse;
 import com.vk.api.sdk.objects.photos.responses.GetMessagesUploadServerResponse;
 import com.vk.api.sdk.objects.photos.responses.PhotoUploadResponse;
 import com.vk.api.sdk.objects.photos.responses.SaveMessagesPhotoResponse;
@@ -15,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.net.URI;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +33,9 @@ public class VKService {
     private final VkApiClient vk;
     private final GroupActor actor;
     private final long userId;
+    private final URI poolServer;
+    private final String poolKey;
+    private String ts;
 
     public VKService(
             @Value("${VK_GROUP_TOKEN}") String accessToken,
@@ -39,6 +45,12 @@ public class VKService {
         vk = new VkApiClient(transportClient);
         actor = new GroupActor(Long.parseLong(groupId.trim()), accessToken.trim());
         this.userId = Long.parseLong(userId.trim());
+
+        GetLongPollServerResponse response = getLongPoolServer();
+        poolServer = response.getServer();
+        poolKey = response.getKey();
+        ts = response.getTs();
+
     }
 
     public void sendMessage(String message) {
@@ -93,6 +105,11 @@ public class VKService {
         }
     }
 
+    public void getNewMessages() {
+        var response = vk.groups().getLongPollServer(actor)
+                .
+    }
+
     private String makeStringForAttachment(List<SaveMessagesPhotoResponse> saveResponse) {
         StringBuilder sb = new StringBuilder();
         for (SaveMessagesPhotoResponse response : saveResponse) {
@@ -100,5 +117,15 @@ public class VKService {
         }
         sb.deleteCharAt(sb.length() - 1);
         return sb.toString();
+    }
+
+    private GetLongPollServerResponse getLongPoolServer(){
+        try {
+            return vk.groups().getLongPollServer(actor).execute();
+        }
+        catch (ApiException | ClientException ex){
+            log.error("Ошибка получения LongPoolServer {}", ex.getMessage(), ex);
+        }
+
     }
 }
