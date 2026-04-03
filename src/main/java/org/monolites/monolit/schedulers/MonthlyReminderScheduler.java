@@ -16,8 +16,18 @@ public class MonthlyReminderScheduler {
         monthlyReminderService.sendMeterReadingReminder();
     }
 
+    @Scheduled(cron = "${monolit.reminders.meter-reading.record.cron}")
+    public void createMeterReadingRecord() {
+        monthlyReminderService.createMeterReadingRecord();
+    }
+
     @Scheduled(cron = "${monolit.reminders.utility-payment.cron}", zone = "${monolit.reminders.zone}")
     public void sendUtilityPaymentReminder() {
         monthlyReminderService.sendUtilityPaymentReminder();
+    }
+
+    @Scheduled(cron = "${monolit.reminders.utility-payment.record.cron}")
+    public void createUtilityPaymentRecord() {
+        monthlyReminderService.createUtilityPaymentRecord();
     }
 }
