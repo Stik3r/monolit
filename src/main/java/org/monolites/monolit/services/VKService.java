@@ -12,8 +12,11 @@ import com.vk.api.sdk.objects.photos.responses.GetMessagesUploadServerResponse;
 import com.vk.api.sdk.objects.photos.responses.PhotoUploadResponse;
 import com.vk.api.sdk.objects.photos.responses.SaveMessagesPhotoResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.monolites.monolit.handlers.GroupLongPoolApiHandler;
+import org.monolites.monolit.model.exception.LongPoolException;
 import org.monolites.monolit.model.exception.SendMessageException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -36,6 +39,7 @@ public class VKService {
     private final URI poolServer;
     private final String poolKey;
     private String ts;
+    private final GroupLongPoolApiHandler groupLongPoolApiHandler;
 
     public VKService(
             @Value("${VK_GROUP_TOKEN}") String accessToken,
@@ -50,6 +54,8 @@ public class VKService {
         poolServer = response.getServer();
         poolKey = response.getKey();
         ts = response.getTs();
+
+        groupLongPoolApiHandler = new GroupLongPoolApiHandler(vk, actor, 25);
 
     }
 
@@ -79,6 +85,20 @@ public class VKService {
         }
     }
 
+    @Async
+    public void run() {
+        log.info("Запуск прослушивания LongPoll...");
+        try {
+            // Метод run() у GroupLongPollApi внутри содержит while(true)
+            // и сам обновляет ts, используя данные из твоего getLongPollServer
+            groupLongPoolApiHandler.run();
+        } catch (Exception e) {
+            log.error("LongPoll упал, перезапуск через 10 секунд", e);
+            try { Thread.sleep(10000); } catch (InterruptedException ignored) {}
+            run(); // Рекурсивный перезапуск
+        }
+    }
+
     private String uploadImage(Map<String, File> images) {
         try {
             List<SaveMessagesPhotoResponse> responses = new ArrayList<>();
@@ -105,11 +125,6 @@ public class VKService {
         }
     }
 
-    public void getNewMessages() {
-        var response = vk.groups().getLongPollServer(actor)
-                .
-    }
-
     private String makeStringForAttachment(List<SaveMessagesPhotoResponse> saveResponse) {
         StringBuilder sb = new StringBuilder();
         for (SaveMessagesPhotoResponse response : saveResponse) {
@@ -125,7 +140,7 @@ public class VKService {
         }
         catch (ApiException | ClientException ex){
             log.error("Ошибка получения LongPoolServer {}", ex.getMessage(), ex);
+            throw new LongPoolException(ex);
         }
-
     }
 }
