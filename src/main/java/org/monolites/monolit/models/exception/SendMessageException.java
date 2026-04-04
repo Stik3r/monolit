@@ -1,4 +1,4 @@
-package org.monolites.monolit.model.exception;
+package org.monolites.monolit.models.exception;
 
 public class SendMessageException extends RuntimeException {
     public SendMessageException(String message) {

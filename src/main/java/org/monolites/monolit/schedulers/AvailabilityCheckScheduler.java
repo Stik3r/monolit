@@ -1,8 +1,8 @@
-package org.monolites.monolit.scheduler;
+package org.monolites.monolit.schedulers;
 
 import lombok.RequiredArgsConstructor;
-import org.monolites.monolit.service.AvailabilityCheckService;
-import org.monolites.monolit.service.VKService;
+import org.monolites.monolit.services.AvailabilityCheckService;
+import org.monolites.monolit.services.VkMessageSenderService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 public class AvailabilityCheckScheduler {
 
     private final AvailabilityCheckService availabilityCheckService;
-    private final VKService vkService;
+    private final VkMessageSenderService vkMessageSenderService;
     @Value("${MONOLIT_TARGET_HOST}")
     private String host;
     @Value("${MONOLIT_TARGET_PORT}")
@@ -22,7 +22,7 @@ public class AvailabilityCheckScheduler {
     public void availabilityCheck() {
         String result = availabilityCheckService.checkAvailability(host.trim(), portValue.trim());
         if(result != null) {
-            vkService.sendMessage(result);
+            vkMessageSenderService.sendMessage(result);
         }
     }
 }

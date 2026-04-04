@@ -1,7 +1,7 @@
-package org.monolites.monolit.scheduler;
+package org.monolites.monolit.schedulers;
 
 import lombok.RequiredArgsConstructor;
-import org.monolites.monolit.service.MonthlyReminderService;
+import org.monolites.monolit.services.MonthlyReminderService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -16,8 +16,18 @@ public class MonthlyReminderScheduler {
         monthlyReminderService.sendMeterReadingReminder();
     }
 
+    @Scheduled(cron = "${monolit.reminders.meter-reading.record.cron}")
+    public void createMeterReadingRecord() {
+        monthlyReminderService.createMeterReadingRecord();
+    }
+
     @Scheduled(cron = "${monolit.reminders.utility-payment.cron}", zone = "${monolit.reminders.zone}")
     public void sendUtilityPaymentReminder() {
         monthlyReminderService.sendUtilityPaymentReminder();
+    }
+
+    @Scheduled(cron = "${monolit.reminders.utility-payment.record.cron}")
+    public void createUtilityPaymentRecord() {
+        monthlyReminderService.createUtilityPaymentRecord();
     }
 }
