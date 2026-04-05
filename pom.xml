@@ -16,6 +16,13 @@
     <version>0.0.1-SNAPSHOT</version>
     <name>monolit</name>
     <description>Minimal Spring Boot shell project</description>
+    <licenses>
+        <license>
+            <name>PolyForm Noncommercial License 1.0.0</name>
+            <url>https://polyformproject.org/licenses/noncommercial/1.0.0/</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
 
     <properties>
         <java.version>21</java.version>
