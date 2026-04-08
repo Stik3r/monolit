@@ -15,12 +15,10 @@ public class AvailabilityCheckScheduler {
     private final VkMessageSenderService vkMessageSenderService;
     @Value("${MONOLIT_TARGET_HOST}")
     private String host;
-    @Value("${MONOLIT_TARGET_PORT}")
-    private String portValue;
 
     @Scheduled(fixedDelayString = "${monolit.check.delay-ms}")
     public void availabilityCheck() {
-        String result = availabilityCheckService.checkAvailability(host.trim(), portValue.trim());
+        String result = availabilityCheckService.checkAvailability(host.trim());
         if(result != null) {
             vkMessageSenderService.sendMessage(result);
         }
