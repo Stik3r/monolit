@@ -34,12 +34,7 @@ public class AvailabilityCheckService {
         }
     }
 
-    public String checkAvailability(String host, String port) {
-        boolean stat = pingService(host, port);
-        if (!stat) {
-            stat = pingHost(host);
-            return !stat ? "Сервер недоступен" : "Сервер работает, но доступ к сервису невозможен";
-        }
-        return null;
+    public String checkAvailability(String host) {
+        return pingHost(host) ? null : "Сервер недоступен";
     }
 }
