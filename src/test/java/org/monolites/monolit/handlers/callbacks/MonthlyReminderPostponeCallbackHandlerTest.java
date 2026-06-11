@@ -12,10 +12,13 @@ import org.monolites.monolit.models.enums.ReminderType;
 import org.monolites.monolit.services.MonthlyReminderService;
 import org.monolites.monolit.services.VkMessageSenderService;
 
+import java.time.LocalDate;
+import java.time.Month;
 import java.time.ZonedDateTime;
 
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(MockitoExtension.class)
 class MonthlyReminderPostponeCallbackHandlerTest {
@@ -30,7 +33,7 @@ class MonthlyReminderPostponeCallbackHandlerTest {
     @Test
     void confirmsNewReminderTime() {
         MonthlyReminderPostponeDto payload = new MonthlyReminderPostponeDto(
-                java.time.LocalDate.of(2026, 6, 1),
+                LocalDate.of(2026, Month.JUNE, 1),
                 ReminderType.METER_READING,
                 ReminderPostponeAction.TEN_MINUTES
         );
@@ -57,5 +60,35 @@ class MonthlyReminderPostponeCallbackHandlerTest {
         handler.handle(payload, event);
 
         verify(messageSender).sendMessage("Напоминание уже выполнено или не найдено.");
+    }
+
+    @Test
+    void confirmsSuppressionForToday() {
+        MonthlyReminderPostponeDto payload = new MonthlyReminderPostponeDto(
+                LocalDate.of(2026, Month.JUNE, 1),
+                ReminderType.UTILITY_PAYMENT,
+                ReminderPostponeAction.TODAY
+        );
+        when(reminderService.postponeReminder(payload)).thenReturn(new ReminderPostponeResult(
+                true,
+                ReminderPostponeAction.TODAY,
+                ZonedDateTime.parse("2026-06-12T00:00:00+03:00[Europe/Moscow]")
+        ));
+        MonthlyReminderPostponeCallbackHandler handler =
+                new MonthlyReminderPostponeCallbackHandler(reminderService, messageSender);
+
+        handler.handle(payload, event);
+
+        verify(messageSender).sendMessage("Сегодня больше не буду напоминать.");
+    }
+
+    @Test
+    void exposesCallbackRouteContract() {
+        MonthlyReminderPostponeCallbackHandler handler =
+                new MonthlyReminderPostponeCallbackHandler(reminderService, messageSender);
+
+        assertThat(handler.type()).isEqualTo("monthly_reminder_postpone");
+        assertThat(handler.version()).isEqualTo(1);
+        assertThat(handler.payloadClass()).isEqualTo(MonthlyReminderPostponeDto.class);
     }
 }

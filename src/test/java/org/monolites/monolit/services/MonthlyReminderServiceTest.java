@@ -17,6 +17,7 @@ import org.monolites.monolit.repositories.MonthlyReminderRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Month;
 import java.time.ZoneId;
 import java.util.List;
 
@@ -25,6 +26,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,7 +35,7 @@ class MonthlyReminderServiceTest {
 
     private static final ZoneId ZONE = ZoneId.of("Europe/Moscow");
     private static final Instant NOW = Instant.parse("2026-06-11T10:00:00Z");
-    private static final LocalDate REMINDER_DATE = LocalDate.of(2026, 6, 1);
+    private static final LocalDate REMINDER_DATE = LocalDate.of(2026, Month.JUNE, 1);
 
     @Mock
     private VkMessageSenderService messageSender;
@@ -155,6 +157,63 @@ class MonthlyReminderServiceTest {
         assertThat(reminderCaptor.getValue().getDate()).isEqualTo(REMINDER_DATE);
     }
 
+    @Test
+    void rejectsInvalidMissingAndDonePostponements() {
+        assertThat(service.postponeReminder(null).updated()).isFalse();
+        assertThat(service.postponeReminder(new MonthlyReminderPostponeDto()).updated()).isFalse();
+
+        MonthlyReminderPostponeDto payload = new MonthlyReminderPostponeDto(
+                REMINDER_DATE,
+                ReminderType.METER_READING,
+                ReminderPostponeAction.ONE_HOUR
+        );
+        when(repository.findByReminderTypeAndDate(ReminderType.METER_READING, REMINDER_DATE))
+                .thenReturn(null, doneReminder(ReminderType.METER_READING));
+
+        assertThat(service.postponeReminder(payload).updated()).isFalse();
+        assertThat(service.postponeReminder(payload).updated()).isFalse();
+        verify(repository, never()).save(any(MonthlyReminder.class));
+    }
+
+    @Test
+    void skipsMissingAndDoneScheduledReminders() {
+        when(repository.findByReminderTypeAndDate(ReminderType.METER_READING, REMINDER_DATE))
+                .thenReturn(null, doneReminder(ReminderType.METER_READING));
+
+        service.sendMeterReadingReminder();
+        service.sendMeterReadingReminder();
+
+        verify(messageSender, never()).sendMessage(any(), anyList(), anyList(), anyList(), anyList(), eq(true));
+    }
+
+    @Test
+    void sendsUtilityReminderWithUtilityDoneLabel() {
+        MonthlyReminder reminder = reminder(ReminderType.UTILITY_PAYMENT);
+        when(repository.findByReminderTypeAndDate(ReminderType.UTILITY_PAYMENT, REMINDER_DATE)).thenReturn(reminder);
+        ArgumentCaptor<List<String>> labelsCaptor = listCaptor();
+
+        service.sendUtilityPaymentReminder();
+
+        verify(messageSender).sendMessage(
+                any(),
+                anyList(),
+                labelsCaptor.capture(),
+                anyList(),
+                eq(List.of(1, 5)),
+                eq(true)
+        );
+        assertThat(labelsCaptor.getValue().getFirst()).isEqualTo("Оплатил");
+    }
+
+    @Test
+    void createsBothMissingRecords() {
+        when(repository.findByReminderTypeAndDate(any(ReminderType.class), eq(REMINDER_DATE))).thenReturn(null);
+
+        service.initializeCurrentMonthRecords();
+
+        verify(repository, times(2)).save(any(MonthlyReminder.class));
+    }
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static ArgumentCaptor<List<String>> listCaptor() {
         return (ArgumentCaptor) ArgumentCaptor.forClass(List.class);
@@ -164,6 +223,12 @@ class MonthlyReminderServiceTest {
         MonthlyReminder reminder = new MonthlyReminder();
         reminder.setReminderType(type);
         reminder.setDate(REMINDER_DATE);
+        return reminder;
+    }
+
+    private MonthlyReminder doneReminder(ReminderType type) {
+        MonthlyReminder reminder = reminder(type);
+        reminder.setDone(true);
         return reminder;
     }
 }
