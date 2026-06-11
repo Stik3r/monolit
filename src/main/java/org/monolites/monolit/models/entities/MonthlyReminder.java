@@ -3,8 +3,10 @@ package org.monolites.monolit.models.entities;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.monolites.monolit.models.enums.ReminderPostponementType;
 import org.monolites.monolit.models.enums.ReminderType;
 
+import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
@@ -29,4 +31,11 @@ public class MonthlyReminder {
 
     @Column(name = "done")
     private boolean done;
+
+    @Column(name = "postponed_until")
+    private Instant postponedUntil;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "postponement_type")
+    private ReminderPostponementType postponementType;
 }
