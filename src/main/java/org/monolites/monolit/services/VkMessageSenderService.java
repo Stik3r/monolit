@@ -61,12 +61,23 @@ public class VkMessageSenderService {
     }
 
     public void sendMessage(String message, List<EnumParam<String>> params, List<String> labels, List<Object> payloads, boolean inline) {
+        sendMessage(message, params, labels, payloads, List.of(params.size()), inline);
+    }
+
+    public void sendMessage(
+            String message,
+            List<EnumParam<String>> params,
+            List<String> labels,
+            List<Object> payloads,
+            List<Integer> rowSizes,
+            boolean inline
+    ) {
         try {
             vk.messages().sendDeprecated(actor)
                     .randomId(RANDOM.nextInt())
                     .userId(userId)
                     .message(message)
-                    .keyboard(buildKeyboard(params, labels, payloads, inline))
+                    .keyboard(buildKeyboard(params, labels, payloads, rowSizes, inline))
                     .execute();
         } catch (ApiException | ClientException | JsonProcessingException e) {
             log.error(ERROR, e.getMessage());
@@ -92,16 +103,51 @@ public class VkMessageSenderService {
     }
 
     public Keyboard buildKeyboard(List<EnumParam<String>> params, List<String> labels, List<Object> payloads, boolean inline) throws JsonProcessingException {
-        List<KeyboardButton> buttons = new ArrayList<>();
+        return buildKeyboard(params, labels, payloads, List.of(params.size()), inline);
+    }
+
+    public Keyboard buildKeyboard(
+            List<EnumParam<String>> params,
+            List<String> labels,
+            List<Object> payloads,
+            List<Integer> rowSizes,
+            boolean inline
+    ) throws JsonProcessingException {
+        validateKeyboardArguments(params, labels, payloads, rowSizes);
+
+        List<List<KeyboardButton>> rows = new ArrayList<>();
+        List<KeyboardButton> row = new ArrayList<>();
+        int rowIndex = 0;
         for (int i = 0; i < params.size(); i++) {
             KeyboardButton button = new KeyboardButton();
             button.setAction(buildAction(params.get(i), labels.get(i), objectMapper.writeValueAsString(payloads.get(i))));
-            buttons.add(button);
+            row.add(button);
+            if (row.size() == rowSizes.get(rowIndex)) {
+                rows.add(row);
+                row = new ArrayList<>();
+                rowIndex++;
+            }
         }
         Keyboard keyboard = new Keyboard();
-        keyboard.setButtons(List.of(buttons));
+        keyboard.setButtons(rows);
         keyboard.setInline(inline);
         return keyboard;
+    }
+
+    private void validateKeyboardArguments(
+            List<EnumParam<String>> params,
+            List<String> labels,
+            List<Object> payloads,
+            List<Integer> rowSizes
+    ) {
+        int buttonCount = params.size();
+        int configuredButtonCount = rowSizes.stream().mapToInt(Integer::intValue).sum();
+        if (buttonCount != labels.size() || buttonCount != payloads.size() || buttonCount != configuredButtonCount) {
+            throw new IllegalArgumentException("Keyboard parameters, labels, payloads and row sizes must describe the same buttons");
+        }
+        if (rowSizes.stream().anyMatch(size -> size <= 0)) {
+            throw new IllegalArgumentException("Keyboard row size must be positive");
+        }
     }
 
     private String uploadImage(Map<String, File> images) {
