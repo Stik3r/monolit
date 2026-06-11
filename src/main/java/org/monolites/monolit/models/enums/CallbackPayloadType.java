@@ -2,7 +2,8 @@ package org.monolites.monolit.models.enums;
 
 public enum CallbackPayloadType {
     MONTHLY_REMINDER_DONE("monthly_reminder_done"),
-    MONTHLY_REMINDER_POSTPONE("monthly_reminder_postpone");
+    MONTHLY_REMINDER_POSTPONE("monthly_reminder_postpone"),
+    CUSTOM_REMINDER_ACTION("custom_reminder_action");
 
     private final String value;
 

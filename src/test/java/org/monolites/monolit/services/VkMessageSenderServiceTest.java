@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vk.api.sdk.client.VkApiClient;
 import com.vk.api.sdk.client.actors.GroupActor;
 import com.vk.api.sdk.objects.messages.Keyboard;
+import com.vk.api.sdk.objects.messages.KeyboardButtonActionText;
 import com.vk.api.sdk.queries.EnumParam;
 import org.junit.jupiter.api.Test;
 
@@ -51,6 +52,25 @@ class VkMessageSenderServiceTest {
         );
 
         assertThat(keyboard.getButtons()).singleElement().satisfies(row -> assertThat(row).hasSize(2));
+    }
+
+    @Test
+    void buildsPersistentKeyboardWithoutButtonPayloads() throws Exception {
+        VkMessageSenderService service = service();
+
+        Keyboard keyboard = service.buildKeyboard(
+                List.of(TEXT, TEXT),
+                List.of("Новое напоминание", "Мои напоминания"),
+                java.util.Arrays.asList(null, null),
+                List.of(2),
+                false
+        );
+
+        assertThat(keyboard.getInline()).isFalse();
+        assertThat(keyboard.getOneTime()).isFalse();
+        KeyboardButtonActionText action =
+                (KeyboardButtonActionText) keyboard.getButtons().getFirst().getFirst().getAction();
+        assertThat(action.getPayload()).isNull();
     }
 
     @Test
