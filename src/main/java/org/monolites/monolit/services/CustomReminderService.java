@@ -70,6 +70,10 @@ public class CustomReminderService {
 
     @Transactional(readOnly = true)
     public void sendList(int requestedPage) {
+        sendListContent(requestedPage);
+    }
+
+    private void sendListContent(int requestedPage) {
         List<CustomReminder> reminders = repository.findAllByStatusInOrderByScheduledAtAsc(
                 List.of(CustomReminderStatus.SCHEDULED)
         );
@@ -83,7 +87,7 @@ public class CustomReminderService {
         }
 
         int pageCount = (reminders.size() + PAGE_SIZE - 1) / PAGE_SIZE;
-        int page = Math.max(0, Math.min(requestedPage, pageCount - 1));
+        int page = Math.clamp(requestedPage, 0, pageCount - 1);
         int from = page * PAGE_SIZE;
         int to = Math.min(from + PAGE_SIZE, reminders.size());
         List<CustomReminder> visible = reminders.subList(from, to);
@@ -133,7 +137,7 @@ public class CustomReminderService {
             return;
         }
         if (dto.action() == CustomReminderAction.LIST) {
-            sendList(dto.page());
+            sendListContent(dto.page());
             return;
         }
         if (dto.action() == CustomReminderAction.CLOSE) {
@@ -155,8 +159,7 @@ public class CustomReminderService {
             case POSTPONE_TEN_MINUTES -> postpone(reminder, Duration.ofMinutes(10), dto.page());
             case POSTPONE_ONE_HOUR -> postpone(reminder, Duration.ofHours(1), dto.page());
             case POSTPONE_THREE_HOURS -> postpone(reminder, Duration.ofHours(3), dto.page());
-            default -> {
-            }
+            case LIST, CLOSE -> throw new IllegalStateException("Action must be handled before reminder lookup");
         }
     }
 

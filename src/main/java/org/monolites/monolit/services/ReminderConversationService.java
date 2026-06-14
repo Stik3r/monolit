@@ -23,6 +23,9 @@ public class ReminderConversationService {
     private static final String NEW_REMINDER = "Новое напоминание";
     private static final String MY_REMINDERS = "Мои напоминания";
     private static final String CANCEL = "Отмена";
+    private static final String BACK = "Назад";
+    private static final String ASK_DATE = "Когда напомнить?";
+    private static final String ONE_OR_TWO_DIGITS = "\\d{1,2}";
     private static final DateTimeFormatter CONFIRMATION_TIME =
             DateTimeFormatter.ofPattern("d MMMM yyyy, HH:mm", Locale.forLanguageTag("ru"));
     private static final Map<String, Month> MONTHS = Map.ofEntries(
@@ -104,7 +107,7 @@ public class ReminderConversationService {
         draft.setReminderText(text);
         draft.setStep(ReminderCreationStep.WAITING_DATE);
         draftRepository.save(draft);
-        askDate("Когда напомнить?");
+        askDate(ASK_DATE);
     }
 
     private void acceptDateChoice(ReminderCreationDraft draft, String text) {
@@ -120,7 +123,7 @@ public class ReminderConversationService {
                 draftRepository.save(draft);
                 messageSender.sendPersistentKeyboard(
                         "Введите дату: например, 15, 15.06 или 15 июня.",
-                        List.of("Назад", CANCEL),
+                        List.of(BACK, CANCEL),
                         List.of(2)
                 );
             }
@@ -129,17 +132,17 @@ public class ReminderConversationService {
     }
 
     private void acceptCustomDate(ReminderCreationDraft draft, String text) {
-        if ("Назад".equalsIgnoreCase(text)) {
+        if (BACK.equalsIgnoreCase(text)) {
             draft.setStep(ReminderCreationStep.WAITING_DATE);
             draftRepository.save(draft);
-            askDate("Когда напомнить?");
+            askDate(ASK_DATE);
             return;
         }
         LocalDate date = parseDate(text);
         if (date == null) {
             messageSender.sendPersistentKeyboard(
                     "Не удалось определить будущую дату. Введите, например, 15, 15.06 или 15 июня.",
-                    List.of("Назад", CANCEL),
+                    List.of(BACK, CANCEL),
                     List.of(2)
             );
             return;
@@ -148,11 +151,11 @@ public class ReminderConversationService {
     }
 
     private void acceptTimeChoice(ReminderCreationDraft draft, String text) {
-        if ("Назад".equalsIgnoreCase(text)) {
+        if (BACK.equalsIgnoreCase(text)) {
             draft.setSelectedDate(null);
             draft.setStep(ReminderCreationStep.WAITING_DATE);
             draftRepository.save(draft);
-            askDate("Когда напомнить?");
+            askDate(ASK_DATE);
             return;
         }
         if ("Другое время".equalsIgnoreCase(text)) {
@@ -160,7 +163,7 @@ public class ReminderConversationService {
             draftRepository.save(draft);
             messageSender.sendPersistentKeyboard(
                     "Введите время: например, 19 или 19:30.",
-                    List.of("Назад", CANCEL),
+                    List.of(BACK, CANCEL),
                     List.of(2)
             );
             return;
@@ -174,7 +177,7 @@ public class ReminderConversationService {
     }
 
     private void acceptCustomTime(ReminderCreationDraft draft, String text) {
-        if ("Назад".equalsIgnoreCase(text)) {
+        if (BACK.equalsIgnoreCase(text)) {
             draft.setStep(ReminderCreationStep.WAITING_TIME);
             draftRepository.save(draft);
             askTime("Во сколько напомнить?");
@@ -184,7 +187,7 @@ public class ReminderConversationService {
         if (time == null) {
             messageSender.sendPersistentKeyboard(
                     "Не удалось определить время. Введите, например, 19 или 19:30.",
-                    List.of("Назад", CANCEL),
+                    List.of(BACK, CANCEL),
                     List.of(2)
             );
             return;
@@ -202,7 +205,7 @@ public class ReminderConversationService {
             draft.setScheduledAt(null);
             draft.setStep(ReminderCreationStep.WAITING_DATE);
             draftRepository.save(draft);
-            askDate("Когда напомнить?");
+            askDate(ASK_DATE);
         } else {
             showConfirmation(draft, "Выберите действие кнопкой.\n\n");
         }
@@ -245,7 +248,7 @@ public class ReminderConversationService {
     private void askTime(String message) {
         messageSender.sendPersistentKeyboard(
                 message,
-                List.of("09:00", "12:00", "18:00", "21:00", "Другое время", "Назад", CANCEL),
+                List.of("09:00", "12:00", "18:00", "21:00", "Другое время", BACK, CANCEL),
                 List.of(2, 2, 3)
         );
     }
@@ -262,7 +265,7 @@ public class ReminderConversationService {
     private LocalDate parseDate(String text) {
         LocalDate today = LocalDate.now(reminderClock);
         String normalized = text.toLowerCase(Locale.ROOT).strip();
-        if (normalized.matches("\\d{1,2}")) {
+        if (normalized.matches(ONE_OR_TWO_DIGITS)) {
             return nearestFutureDay(Integer.parseInt(normalized), today);
         }
         if (normalized.matches("\\d{1,2}\\.\\d{1,2}")) {
@@ -270,7 +273,7 @@ public class ReminderConversationService {
             return futureDate(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), today);
         }
         String[] parts = normalized.split("\\s+");
-        if (parts.length == 2 && parts[0].matches("\\d{1,2}") && MONTHS.containsKey(parts[1])) {
+        if (parts.length == 2 && parts[0].matches(ONE_OR_TWO_DIGITS) && MONTHS.containsKey(parts[1])) {
             return futureDate(Integer.parseInt(parts[0]), MONTHS.get(parts[1]).getValue(), today);
         }
         return null;
@@ -301,7 +304,7 @@ public class ReminderConversationService {
     private LocalTime parseTime(String text) {
         String normalized = text.strip();
         try {
-            if (normalized.matches("\\d{1,2}")) {
+            if (normalized.matches(ONE_OR_TWO_DIGITS)) {
                 return LocalTime.of(Integer.parseInt(normalized), 0);
             }
             return LocalTime.parse(normalized, DateTimeFormatter.ofPattern("H:mm"));

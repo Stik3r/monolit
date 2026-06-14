@@ -65,6 +65,21 @@ class CustomReminderServiceTest {
     }
 
     @Test
+    void createsScheduledReminder() {
+        Instant scheduledAt = NOW.plusSeconds(600);
+        ArgumentCaptor<CustomReminder> reminderCaptor = ArgumentCaptor.forClass(CustomReminder.class);
+        when(repository.save(any(CustomReminder.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CustomReminder result = service.create("Позвонить", scheduledAt);
+
+        verify(repository).save(reminderCaptor.capture());
+        assertThat(result).isSameAs(reminderCaptor.getValue());
+        assertThat(result.getText()).isEqualTo("Позвонить");
+        assertThat(result.getScheduledAt()).isEqualTo(scheduledAt);
+        assertThat(result.getStatus()).isEqualTo(CustomReminderStatus.SCHEDULED);
+    }
+
+    @Test
     void postponingSentReminderSchedulesItAgain() {
         CustomReminder reminder = reminder(3L, NOW.minusSeconds(60));
         reminder.setStatus(CustomReminderStatus.SENT);
@@ -105,6 +120,65 @@ class CustomReminderServiceTest {
     }
 
     @Test
+    void clampsRequestedPageToLastAvailablePage() {
+        List<CustomReminder> reminders = List.of(
+                reminder(1L, NOW.plusSeconds(1)),
+                reminder(2L, NOW.plusSeconds(2)),
+                reminder(3L, NOW.plusSeconds(3)),
+                reminder(4L, NOW.plusSeconds(4)),
+                reminder(5L, NOW.plusSeconds(5)),
+                reminder(6L, NOW.plusSeconds(6))
+        );
+        when(repository.findAllByStatusInOrderByScheduledAtAsc(List.of(CustomReminderStatus.SCHEDULED)))
+                .thenReturn(reminders);
+        ArgumentCaptor<List<String>> labels = listCaptor();
+
+        service.sendList(99);
+
+        verify(messageSender).sendMessage(
+                contains("6-6 из 6"),
+                anyList(),
+                labels.capture(),
+                anyList(),
+                eq(List.of(1, 2)),
+                eq(true)
+        );
+        assertThat(labels.getValue()).containsExactly("6", "Назад", "Закрыть");
+    }
+
+    @Test
+    void sendsEmptyListMessage() {
+        when(repository.findAllByStatusInOrderByScheduledAtAsc(List.of(CustomReminderStatus.SCHEDULED)))
+                .thenReturn(List.of());
+
+        service.sendList(-1);
+
+        verify(messageSender).sendPersistentKeyboard(
+                "Активных напоминаний нет.",
+                List.of("Новое напоминание", "Мои напоминания"),
+                List.of(2)
+        );
+    }
+
+    @Test
+    void handlesListActionWithListContent() {
+        CustomReminder reminder = reminder(1L, NOW.plusSeconds(1));
+        when(repository.findAllByStatusInOrderByScheduledAtAsc(List.of(CustomReminderStatus.SCHEDULED)))
+                .thenReturn(List.of(reminder));
+
+        service.handle(new CustomReminderActionDto(CustomReminderAction.LIST, null, 0));
+
+        verify(messageSender).sendMessage(
+                contains("1-1 из 1"),
+                anyList(),
+                anyList(),
+                anyList(),
+                eq(List.of(1, 1)),
+                eq(true)
+        );
+    }
+
+    @Test
     void opensReminderCardBySendingNewMessageInsteadOfEditingUserMessage() {
         CustomReminder reminder = reminder(2L, NOW.plusSeconds(3600));
         when(repository.findById(2L)).thenReturn(Optional.of(reminder));
@@ -140,6 +214,34 @@ class CustomReminderServiceTest {
         assertThat(reminder.getStatus()).isEqualTo(CustomReminderStatus.DONE);
         verify(repository).save(reminder);
         verify(messageSender).sendMessage("Напоминание выполнено.");
+        verifyNoMoreInteractions(messageSender);
+    }
+
+    @Test
+    void requestsAndConfirmsReminderDeletion() {
+        CustomReminder reminder = reminder(2L, NOW.plusSeconds(3600));
+        when(repository.findById(2L)).thenReturn(Optional.of(reminder));
+
+        service.handle(new CustomReminderActionDto(CustomReminderAction.DELETE_REQUEST, 2L, 1));
+        service.handle(new CustomReminderActionDto(CustomReminderAction.DELETE_CONFIRM, 2L, 1));
+
+        assertThat(reminder.getStatus()).isEqualTo(CustomReminderStatus.DELETED);
+        verify(repository).save(reminder);
+        verify(messageSender).sendMessage(startsWith("Удалить напоминание?"), anyList(), anyList(), anyList(), eq(List.of(2)), eq(true));
+        verify(messageSender).sendMessage("Напоминание удалено.");
+    }
+
+    @Test
+    void ignoresMissingActionAndRejectsUnavailableReminder() {
+        CustomReminder reminder = reminder(2L, NOW.plusSeconds(3600));
+        reminder.setStatus(CustomReminderStatus.MISSED);
+        when(repository.findById(2L)).thenReturn(Optional.of(reminder));
+
+        service.handle(null);
+        service.handle(new CustomReminderActionDto(null, null, 0));
+        service.handle(new CustomReminderActionDto(CustomReminderAction.OPEN, 2L, 0));
+
+        verify(messageSender).sendMessage("Напоминание уже недоступно.");
         verifyNoMoreInteractions(messageSender);
     }
 
