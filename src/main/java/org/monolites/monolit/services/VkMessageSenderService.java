@@ -64,6 +64,18 @@ public class VkMessageSenderService {
         sendMessage(message, params, labels, payloads, List.of(params.size()), inline);
     }
 
+    public void sendPersistentKeyboard(String message, List<String> labels, List<Integer> rowSizes) {
+        List<Object> emptyPayloads = new ArrayList<>(Collections.nCopies(labels.size(), null));
+        sendMessage(
+                message,
+                Collections.nCopies(labels.size(), com.vk.api.sdk.objects.messages.KeyboardButtonActionTextType.TEXT),
+                labels,
+                emptyPayloads,
+                rowSizes,
+                false
+        );
+    }
+
     public void sendMessage(
             String message,
             List<EnumParam<String>> params,
@@ -120,7 +132,8 @@ public class VkMessageSenderService {
         int rowIndex = 0;
         for (int i = 0; i < params.size(); i++) {
             KeyboardButton button = new KeyboardButton();
-            button.setAction(buildAction(params.get(i), labels.get(i), objectMapper.writeValueAsString(payloads.get(i))));
+            String payload = payloads.get(i) == null ? null : objectMapper.writeValueAsString(payloads.get(i));
+            button.setAction(buildAction(params.get(i), labels.get(i), payload));
             row.add(button);
             if (row.size() == rowSizes.get(rowIndex)) {
                 rows.add(row);
@@ -131,6 +144,7 @@ public class VkMessageSenderService {
         Keyboard keyboard = new Keyboard();
         keyboard.setButtons(rows);
         keyboard.setInline(inline);
+        keyboard.setOneTime(false);
         return keyboard;
     }
 
@@ -223,7 +237,9 @@ public class VkMessageSenderService {
                 KeyboardButtonActionText actionText = new KeyboardButtonActionText();
                 actionText.setType(KeyboardButtonActionTextType.TEXT);
                 actionText.setLabel(label);
-                actionText.setPayload(payload);
+                if (payload != null) {
+                    actionText.setPayload(payload);
+                }
                 return actionText;
         }
     }
