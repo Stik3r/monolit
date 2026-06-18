@@ -26,6 +26,12 @@ public class ShoppingListService {
     private static final int PAGE_SIZE = 5;
     private static final int MAX_KEYBOARD_ROW_SIZE = 5;
     private static final int PAYLOAD_VERSION = 1;
+    private static final String PREVIOUS_PAGE_LABEL = "←";
+    private static final String NEXT_PAGE_LABEL = "→";
+    private static final String ADD_LABEL = "➕";
+    private static final String CLEAR_PURCHASED_LABEL = "🧹";
+    private static final String CLOSE_LABEL = "✖";
+    private static final String BACK_TO_LIST_LABEL = "↩";
 
     private final ShoppingItemRepository repository;
     private final VkMessageSenderService messageSender;
@@ -72,7 +78,7 @@ public class ShoppingListService {
             messageSender.sendMessage(
                     prefix + "Список покупок пуст.",
                     List.of(TEXT, TEXT),
-                    List.of("Добавить", "Закрыть"),
+                    List.of(ADD_LABEL, CLOSE_LABEL),
                     List.of(payload(ShoppingListAction.ADD, null, 0), payload(ShoppingListAction.CLOSE, null, 0)),
                     List.of(2),
                     true
@@ -108,26 +114,26 @@ public class ShoppingListService {
 
         int navigationButtons = 0;
         if (page > 0) {
-            labels.add("Назад");
+            labels.add(PREVIOUS_PAGE_LABEL);
             payloads.add(payload(ShoppingListAction.LIST, null, page - 1));
             types.add(TEXT);
             navigationButtons++;
         }
         if (page + 1 < pageCount) {
-            labels.add("Вперед");
+            labels.add(NEXT_PAGE_LABEL);
             payloads.add(payload(ShoppingListAction.LIST, null, page + 1));
             types.add(TEXT);
             navigationButtons++;
         }
-        labels.add("Добавить");
+        labels.add(ADD_LABEL);
         payloads.add(payload(ShoppingListAction.ADD, null, page));
         types.add(TEXT);
         navigationButtons++;
-        labels.add("Очистить купленные");
+        labels.add(CLEAR_PURCHASED_LABEL);
         payloads.add(payload(ShoppingListAction.CLEAR_PURCHASED_REQUEST, null, page));
         types.add(TEXT);
         navigationButtons++;
-        labels.add("Закрыть");
+        labels.add(CLOSE_LABEL);
         payloads.add(payload(ShoppingListAction.CLOSE, null, page));
         types.add(TEXT);
         navigationButtons++;
@@ -158,7 +164,7 @@ public class ShoppingListService {
         messageSender.sendMessage(
                 "Удалить все купленные покупки?",
                 List.of(TEXT, TEXT),
-                List.of("Удалить купленные", "К списку"),
+                List.of(CLEAR_PURCHASED_LABEL, BACK_TO_LIST_LABEL),
                 List.of(
                         payload(ShoppingListAction.CLEAR_PURCHASED_CONFIRM, null, page),
                         payload(ShoppingListAction.LIST, null, page)
