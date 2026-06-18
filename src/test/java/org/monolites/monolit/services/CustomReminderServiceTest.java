@@ -31,6 +31,8 @@ class CustomReminderServiceTest {
     private CustomReminderRepository repository;
     @Mock
     private VkMessageSenderService messageSender;
+    @Mock
+    private BotMainMenuService mainMenuService;
 
     private CustomReminderService service;
 
@@ -39,6 +41,7 @@ class CustomReminderServiceTest {
         service = new CustomReminderService(
                 repository,
                 messageSender,
+                mainMenuService,
                 Clock.fixed(NOW, ZoneId.of("Europe/Moscow"))
         );
     }
@@ -153,11 +156,7 @@ class CustomReminderServiceTest {
 
         service.sendList(-1);
 
-        verify(messageSender).sendPersistentKeyboard(
-                "Активных напоминаний нет.",
-                List.of("Новое напоминание", "Мои напоминания"),
-                List.of(2)
-        );
+        verify(mainMenuService).show("Активных напоминаний нет.");
     }
 
     @Test
