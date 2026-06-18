@@ -20,8 +20,6 @@ import static org.monolites.monolit.models.entities.ReminderCreationDraft.SINGLE
 @RequiredArgsConstructor
 public class ReminderConversationService {
 
-    private static final String NEW_REMINDER = "Новое напоминание";
-    private static final String MY_REMINDERS = "Мои напоминания";
     private static final String CANCEL = "Отмена";
     private static final String BACK = "Назад";
     private static final String ASK_DATE = "Когда напомнить?";
@@ -46,18 +44,24 @@ public class ReminderConversationService {
     private final ReminderCreationDraftRepository draftRepository;
     private final CustomReminderService customReminderService;
     private final VkMessageSenderService messageSender;
+    private final BotMainMenuService mainMenuService;
     private final Clock reminderClock;
+
+    @Transactional(readOnly = true)
+    public boolean isActive() {
+        return draftRepository.existsById(SINGLE_USER_DRAFT_ID);
+    }
 
     @Transactional
     public boolean handle(String rawText) {
         String text = rawText == null ? "" : rawText.strip();
         ReminderCreationDraft draft = draftRepository.findById(SINGLE_USER_DRAFT_ID).orElse(null);
         if (draft == null) {
-            if (NEW_REMINDER.equalsIgnoreCase(text)) {
+            if (BotMainMenuService.NEW_REMINDER.equalsIgnoreCase(text)) {
                 startCreation();
                 return true;
             }
-            if (MY_REMINDERS.equalsIgnoreCase(text)) {
+            if (BotMainMenuService.MY_REMINDERS.equalsIgnoreCase(text)) {
                 customReminderService.sendList(0);
                 return true;
             }
@@ -73,7 +77,7 @@ public class ReminderConversationService {
     }
 
     public void showMainMenu(String message) {
-        messageSender.sendPersistentKeyboard(message, List.of(NEW_REMINDER, MY_REMINDERS), List.of(2));
+        mainMenuService.show(message);
     }
 
     private void startCreation() {

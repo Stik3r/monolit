@@ -32,6 +32,8 @@ class ReminderConversationServiceTest {
     private CustomReminderService customReminderService;
     @Mock
     private VkMessageSenderService messageSender;
+    @Mock
+    private BotMainMenuService mainMenuService;
 
     private ReminderConversationService service;
 
@@ -41,6 +43,7 @@ class ReminderConversationServiceTest {
                 draftRepository,
                 customReminderService,
                 messageSender,
+                mainMenuService,
                 Clock.fixed(NOW, ZONE)
         );
     }
@@ -107,11 +110,7 @@ class ReminderConversationServiceTest {
         assertThat(service.handle("Отмена")).isTrue();
 
         verify(draftRepository).delete(draft);
-        verify(messageSender).sendPersistentKeyboard(
-                "Создание напоминания отменено.",
-                List.of("Новое напоминание", "Мои напоминания"),
-                List.of(2)
-        );
+        verify(mainMenuService).show("Создание напоминания отменено.");
     }
 
     @Test

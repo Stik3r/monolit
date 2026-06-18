@@ -33,6 +33,7 @@ public class CustomReminderService {
 
     private final CustomReminderRepository repository;
     private final VkMessageSenderService messageSender;
+    private final BotMainMenuService mainMenuService;
     private final Clock reminderClock;
 
     @Transactional
@@ -78,11 +79,7 @@ public class CustomReminderService {
                 List.of(CustomReminderStatus.SCHEDULED)
         );
         if (reminders.isEmpty()) {
-            messageSender.sendPersistentKeyboard(
-                    "Активных напоминаний нет.",
-                    List.of("Новое напоминание", "Мои напоминания"),
-                    List.of(2)
-            );
+            mainMenuService.show("Активных напоминаний нет.");
             return;
         }
 
