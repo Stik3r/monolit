@@ -7,6 +7,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.monolites.monolit.models.dtos.ShoppingListActionDto;
+import org.monolites.monolit.models.dtos.callback.CallbackPayloadEnvelope;
 import org.monolites.monolit.models.entities.ShoppingItem;
 import org.monolites.monolit.models.enums.ShoppingItemStatus;
 import org.monolites.monolit.models.enums.ShoppingListAction;
@@ -73,7 +74,7 @@ class ShoppingListServiceTest {
         verify(messageSender).sendMessage(
                 eq("Список покупок пуст."),
                 anyList(),
-                eq(List.of("Добавить", "Закрыть")),
+                eq(List.of("➕", "✖")),
                 anyList(),
                 eq(List.of(2)),
                 eq(true)
@@ -97,7 +98,76 @@ class ShoppingListServiceTest {
         );
         assertThat(labels.getValue())
                 .containsExactly("1", "2", "3", "4", "5",
-                        "Вперед", "Добавить", "Очистить купленные", "Закрыть");
+                        "→", "➕", "🧹", "✖");
+    }
+
+    @Test
+    void listsMiddlePageWithCompactPreviousAndNextNavigation() {
+        when(repository.findAllByOrderByCreatedAtAscIdAsc()).thenReturn(items(12));
+        ArgumentCaptor<List<String>> labels = listCaptor();
+
+        service.sendList(1);
+
+        verify(messageSender).sendMessage(
+                contains("6-10 из 12"),
+                anyList(),
+                labels.capture(),
+                anyList(),
+                eq(List.of(5, 5)),
+                eq(true)
+        );
+        assertThat(labels.getValue())
+                .containsExactly("6", "7", "8", "9", "10",
+                        "←", "→", "➕", "🧹", "✖");
+    }
+
+    @Test
+    void listsLastPageWithCompactPreviousNavigationOnly() {
+        when(repository.findAllByOrderByCreatedAtAscIdAsc()).thenReturn(items(12));
+        ArgumentCaptor<List<String>> labels = listCaptor();
+
+        service.sendList(2);
+
+        verify(messageSender).sendMessage(
+                contains("11-12 из 12"),
+                anyList(),
+                labels.capture(),
+                anyList(),
+                eq(List.of(2, 4)),
+                eq(true)
+        );
+        assertThat(labels.getValue())
+                .containsExactly("11", "12", "←", "➕", "🧹", "✖");
+    }
+
+    @Test
+    void keepsActionPayloadsWhenUsingCompactLabels() {
+        when(repository.findAllByOrderByCreatedAtAscIdAsc()).thenReturn(items(6));
+        ArgumentCaptor<List<Object>> payloads = payloadCaptor();
+
+        service.sendList(0);
+
+        verify(messageSender).sendMessage(
+                contains("1-5 из 6"),
+                anyList(),
+                anyList(),
+                payloads.capture(),
+                anyList(),
+                eq(true)
+        );
+        assertThat(payloads.getValue())
+                .map(ShoppingListServiceTest::shoppingListAction)
+                .containsExactly(
+                        ShoppingListAction.TOGGLE,
+                        ShoppingListAction.TOGGLE,
+                        ShoppingListAction.TOGGLE,
+                        ShoppingListAction.TOGGLE,
+                        ShoppingListAction.TOGGLE,
+                        ShoppingListAction.LIST,
+                        ShoppingListAction.ADD,
+                        ShoppingListAction.CLEAR_PURCHASED_REQUEST,
+                        ShoppingListAction.CLOSE
+                );
     }
 
     @Test
@@ -133,7 +203,7 @@ class ShoppingListServiceTest {
         );
         assertThat(labels.getValue())
                 .containsExactly("1", "2", "3", "4", "5",
-                        "Вперед", "Добавить", "Очистить купленные", "Закрыть");
+                        "→", "➕", "🧹", "✖");
     }
 
     @Test
@@ -243,7 +313,7 @@ class ShoppingListServiceTest {
         service.handle(new ShoppingListActionDto(ShoppingListAction.CLEAR_PURCHASED_REQUEST, null, 0));
         service.handle(new ShoppingListActionDto(ShoppingListAction.CLEAR_PURCHASED_CONFIRM, null, 0));
 
-        verify(messageSender).sendMessage(eq("Удалить все купленные покупки?"), anyList(), anyList(), anyList(), eq(List.of(2)), eq(true));
+        verify(messageSender).sendMessage(eq("Удалить все купленные покупки?"), anyList(), eq(List.of("🧹", "↩")), anyList(), eq(List.of(2)), eq(true));
         verify(repository).deleteByStatus(ShoppingItemStatus.PURCHASED);
         verify(messageSender).sendMessage(contains("Купленные покупки удалены."), anyList(), anyList(), anyList(), anyList(), eq(true));
     }
@@ -270,6 +340,17 @@ class ShoppingListServiceTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static ArgumentCaptor<List<String>> listCaptor() {
         return (ArgumentCaptor) ArgumentCaptor.forClass(List.class);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static ArgumentCaptor<List<Object>> payloadCaptor() {
+        return (ArgumentCaptor) ArgumentCaptor.forClass(List.class);
+    }
+
+    private static ShoppingListAction shoppingListAction(Object payload) {
+        CallbackPayloadEnvelope envelope = (CallbackPayloadEnvelope) payload;
+        ShoppingListActionDto dto = (ShoppingListActionDto) envelope.data();
+        return dto.action();
     }
 
     private List<ShoppingItem> items(int count) {
