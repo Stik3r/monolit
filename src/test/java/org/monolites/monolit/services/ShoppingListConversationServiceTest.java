@@ -50,6 +50,29 @@ class ShoppingListConversationServiceTest {
     }
 
     @Test
+    void opensFullShoppingListFromMainMenu() {
+        when(draftRepository.findById(ShoppingListDraft.SINGLE_USER_DRAFT_ID)).thenReturn(Optional.empty());
+
+        assertThat(service.handle("Весь список покупок")).isTrue();
+
+        verify(shoppingListService).sendFullList();
+        verifyNoInteractions(messageSender, mainMenuService);
+    }
+
+    @Test
+    void keepsActiveDraftBeforeFullShoppingListCommand() {
+        ShoppingListDraft draft = new ShoppingListDraft();
+        draft.setId(ShoppingListDraft.SINGLE_USER_DRAFT_ID);
+        when(draftRepository.findById(ShoppingListDraft.SINGLE_USER_DRAFT_ID)).thenReturn(Optional.of(draft));
+
+        assertThat(service.handle("Весь список покупок")).isTrue();
+
+        assertThat(draft.getPendingItems()).isEqualTo("Весь список покупок");
+        verify(draftRepository).save(draft);
+        verifyNoInteractions(shoppingListService, mainMenuService);
+    }
+
+    @Test
     void leavesUnrecognizedMessagesUntouchedWithoutActiveDraft() {
         when(draftRepository.findById(ShoppingListDraft.SINGLE_USER_DRAFT_ID)).thenReturn(Optional.empty());
 

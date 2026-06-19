@@ -229,6 +229,36 @@ class ShoppingListServiceTest {
     }
 
     @Test
+    void sendsFullListAsPlainReadOnlyMessageWithExistingStatusStyle() {
+        ShoppingItem milk = item(1L, "Молоко", ShoppingItemStatus.TO_BUY, NOW);
+        ShoppingItem bread = item(2L, "Хлеб", ShoppingItemStatus.PURCHASED, NOW.plusSeconds(1));
+        ShoppingItem cheese = item(3L, "Сыр", ShoppingItemStatus.TO_BUY, NOW.plusSeconds(2));
+        when(repository.findAllByOrderByCreatedAtAscIdAsc()).thenReturn(List.of(milk, bread, cheese));
+
+        service.sendFullList();
+
+        verify(messageSender).sendMessage("""
+                Весь список покупок, 3:
+
+                1. Молоко
+                2. Хлеб ✅
+                3. Сыр""");
+        verify(messageSender, never()).sendMessage(anyString(), anyList(), anyList(), anyList(), anyList(), anyBoolean());
+        verify(repository, never()).save(any());
+        verify(repository, never()).deleteByStatus(any());
+    }
+
+    @Test
+    void sendsEmptyFullListAsPlainMessage() {
+        when(repository.findAllByOrderByCreatedAtAscIdAsc()).thenReturn(List.of());
+
+        service.sendFullList();
+
+        verify(messageSender).sendMessage("Список покупок пуст.");
+        verify(messageSender, never()).sendMessage(anyString(), anyList(), anyList(), anyList(), anyList(), anyBoolean());
+    }
+
+    @Test
     void togglesItemStatusAndRefreshesList() {
         ShoppingItem item = item(1L, "Молоко", ShoppingItemStatus.TO_BUY, NOW);
         when(repository.findById(1L)).thenReturn(Optional.of(item));

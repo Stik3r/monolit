@@ -57,6 +57,16 @@ public class ShoppingListService {
         sendListContent(requestedPage, "");
     }
 
+    @Transactional(readOnly = true)
+    public void sendFullList() {
+        List<ShoppingItem> items = orderedItems();
+        if (items.isEmpty()) {
+            messageSender.sendMessage("Список покупок пуст.");
+            return;
+        }
+        messageSender.sendMessage(fullListText(items));
+    }
+
     @Transactional
     public void handle(ShoppingListActionDto dto) {
         if (dto == null || dto.action() == null) {
@@ -198,6 +208,20 @@ public class ShoppingListService {
         return item.getStatus() == ShoppingItemStatus.PURCHASED
                 ? item.getName() + " ✅"
                 : item.getName();
+    }
+
+    private static String fullListText(List<ShoppingItem> items) {
+        StringBuilder text = new StringBuilder("Весь список покупок, ")
+                .append(items.size())
+                .append(":\n\n");
+        for (int i = 0; i < items.size(); i++) {
+            ShoppingItem item = items.get(i);
+            text.append(i + 1)
+                    .append(". ")
+                    .append(displayName(item))
+                    .append('\n');
+        }
+        return text.toString().stripTrailing();
     }
 
     private CallbackPayloadEnvelope payload(ShoppingListAction action, Long itemId, int page) {
