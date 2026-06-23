@@ -1,0 +1,40 @@
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: mercury
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Build Docker image
+        run: docker build -t monolit:latest .
+
+  deploy:
+    runs-on: mercury
+    needs: build
+
+    steps:
+      - name: Remove old container
+        run: docker rm -f monolit || true
+
+      - name: Start new container
+        run: |
+            docker run -d \
+              --add-host=host.docker.internal:host-gateway \
+              --log-driver json-file \
+              --log-opt max-size=10m \
+              --log-opt max-file=3 \
+              --restart always \
+              -p 8080:8080 \
+              -e SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:5432/home_db \
+              -e SPRING_DATASOURCE_USERNAME="${{ secrets.SPRING_DATASOURCE_USERNAME }}" \
+              -e SPRING_DATASOURCE_PASSWORD="${{ secrets.SPRING_DATASOURCE_PASSWORD }}" \
+              -e VK_GROUP_ID="${{ secrets.VK_GROUP_ID }}" \
+              -e VK_GROUP_TOKEN="${{ secrets.VK_GROUP_TOKEN }}" \
+              -e VK_MY_ID="${{ secrets.VK_MY_ID }}" \
+              monolit:latest
