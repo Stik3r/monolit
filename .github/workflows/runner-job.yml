@@ -33,6 +33,8 @@ jobs:
               --restart always \
               -p 8080:8080 \
               -e SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:5432/home_db \
+              -e MONOLIT_TARGET_HOST="${{ secrets.MONOLIT_TARGET_HOST }}" \
+              -e MONOLIT_TARGET_PORT="8080" \
               -e SPRING_DATASOURCE_USERNAME="${{ secrets.SPRING_DATASOURCE_USERNAME }}" \
               -e SPRING_DATASOURCE_PASSWORD="${{ secrets.SPRING_DATASOURCE_PASSWORD }}" \
               -e VK_GROUP_ID="${{ secrets.VK_GROUP_ID }}" \
