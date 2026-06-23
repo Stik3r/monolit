@@ -25,6 +25,7 @@ jobs:
       - name: Start new container
         run: |
             docker run -d \
+              --name monolit \
               --add-host=host.docker.internal:host-gateway \
               --log-driver json-file \
               --log-opt max-size=10m \
