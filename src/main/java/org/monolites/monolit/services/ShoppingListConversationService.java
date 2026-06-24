@@ -42,6 +42,10 @@ public class ShoppingListConversationService {
                 shoppingListService.sendList(0);
                 return true;
             }
+            if (BotMainMenuService.FULL_SHOPPING_LIST.equalsIgnoreCase(text)) {
+                shoppingListService.sendFullList();
+                return true;
+            }
             if (ADD_ITEM.equalsIgnoreCase(text) || ADD.equalsIgnoreCase(text)) {
                 doStartAdding();
                 return true;
