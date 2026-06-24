@@ -16,7 +16,6 @@ import static org.monolites.monolit.models.entities.ShoppingListDraft.SINGLE_USE
 @RequiredArgsConstructor
 public class ShoppingListConversationService {
 
-    private static final String ADD_ITEM = "Добавить покупку";
     private static final String ADD = "Добавить";
     private static final String DONE = "Готово";
     private static final String CANCEL = "Отмена";
@@ -46,7 +45,7 @@ public class ShoppingListConversationService {
                 shoppingListService.sendFullList();
                 return true;
             }
-            if (ADD_ITEM.equalsIgnoreCase(text) || ADD.equalsIgnoreCase(text)) {
+            if (BotMainMenuService.ADD_SHOPPING_ITEM.equalsIgnoreCase(text) || ADD.equalsIgnoreCase(text)) {
                 doStartAdding();
                 return true;
             }
