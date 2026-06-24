@@ -1,28 +1,37 @@
 package org.monolites.monolit.services;
 
-import org.monolites.monolit.models.dtos.CherinfoNewsDetails;
-import org.monolites.monolit.models.dtos.CherinfoNewsItem;
+import org.monolites.monolit.models.dtos.NewsDetails;
+import org.monolites.monolit.models.dtos.NewsItem;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
 
+import java.io.StringReader;
 import java.net.URI;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilderFactory;
 
 @Component
 public class CherinfoNewsParser {
 
-    private static final Pattern NEWS_LINK_PATTERN = Pattern.compile(
-            "<a\\b[^>]*href\\s*=\\s*([\"'])((?:https?://(?:www\\.)?cherinfo\\.ru)?/news/\\d+[^\"']*)\\1[^>]*>(.*?)</a>",
-            Pattern.CASE_INSENSITIVE | Pattern.DOTALL
-    );
-    private static final Pattern PUBLISHED_AT_PATTERN = Pattern.compile(
-            "((?:Сегодня|Вчера|\\d{2}\\.\\d{2}\\.\\d{4})\\s+\\d{1,2}:\\d{2})"
+    private static final DateTimeFormatter RSS_DATE_FORMATTER = DateTimeFormatter.ofPattern(
+            "dd.MM.yyyy HH:mm",
+            Locale.forLanguageTag("ru-RU")
     );
     private static final Pattern ARTICLE_PATTERN = Pattern.compile(
             "<article\\b[^>]*>(.*?)</article>",
@@ -32,8 +41,12 @@ public class CherinfoNewsParser {
             "<main\\b[^>]*>(.*?)</main>",
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL
     );
-    private static final Pattern ARTICLE_TEXT_PATTERN = Pattern.compile(
-            "<div\\b[^>]*class\\s*=\\s*([\"'])(?:article-text(?:\\s[^\"']*)?|[^\"']*\\sarticle-text(?:\\s[^\"']*)?)\\1[^>]*>",
+    private static final Pattern OPENING_DIV_PATTERN = Pattern.compile(
+            "<div\\b[^>]*>",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern CLASS_ATTRIBUTE_PATTERN = Pattern.compile(
+            "\\bclass\\s*=\\s*([\"'])([^\"']*)\\1",
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL
     );
     private static final Pattern TITLE_PATTERN = Pattern.compile(
@@ -42,6 +55,14 @@ public class CherinfoNewsParser {
     );
     private static final Pattern META_IMAGE_PATTERN = Pattern.compile(
             "<meta\\b[^>]*(?:property|itemprop)\\s*=\\s*([\"'])(?:og:image|image)\\1[^>]*content\\s*=\\s*([\"'])([^\"']+)\\2[^>]*>",
+            Pattern.CASE_INSENSITIVE | Pattern.DOTALL
+    );
+    private static final Pattern GALLERY_PATTERN = Pattern.compile(
+            "<div\\b[^>]*class\\s*=\\s*([\"'])[^\"']*\\bfotorama\\b[^\"']*\\1[^>]*>(.*?)</div>",
+            Pattern.CASE_INSENSITIVE | Pattern.DOTALL
+    );
+    private static final Pattern LINK_PATTERN = Pattern.compile(
+            "<a\\b[^>]*href\\s*=\\s*([\"'])([^\"']+)\\1[^>]*>",
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL
     );
     private static final Pattern PARAGRAPH_PATTERN = Pattern.compile(
@@ -58,46 +79,79 @@ public class CherinfoNewsParser {
     );
     private static final Pattern TAG_PATTERN = Pattern.compile("<[^>]+>");
     private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
+    private static final Pattern SPACE_BEFORE_PUNCTUATION_PATTERN = Pattern.compile("\\s+([.,!?;:])");
     private static final Pattern NEWS_META_LINE_PATTERN = Pattern.compile(
             "(?:Сегодня|Вчера|\\d{2}\\.\\d{2}\\.\\d{4})\\s+\\d{1,2}:\\d{2}(?:\\s+\\d+){0,2}"
     );
 
-    public List<CherinfoNewsItem> parse(String html, URI baseUri) {
-        if (html == null || html.isBlank()) {
+    private final ImagePaths imagePaths;
+
+    public CherinfoNewsParser(
+            @Value("${monolit.news.cherinfo.image.big-path}") String imageBigPath,
+            @Value("${monolit.news.cherinfo.image.medium-path}") String imageMediumPath,
+            @Value("${monolit.news.cherinfo.image.small-path}") String imageSmallPath
+    ) {
+        this.imagePaths = new ImagePaths(imageBigPath.trim(), imageMediumPath.trim(), imageSmallPath.trim());
+    }
+
+    public List<NewsItem> parseRss(String rss, URI baseUri) {
+        if (rss == null || rss.isBlank()) {
             return List.of();
         }
 
-        Matcher matcher = NEWS_LINK_PATTERN.matcher(html);
-        List<Candidate> candidates = new ArrayList<>();
-        while (matcher.find()) {
-            String title = cleanText(matcher.group(3));
-            String url = normalizeUrl(baseUri, matcher.group(2));
-            if (!title.isBlank() && !url.isBlank()) {
-                candidates.add(new Candidate(title, url, matcher.start(), matcher.end()));
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            factory.setExpandEntityReferences(false);
+            Document document = factory.newDocumentBuilder()
+                    .parse(new InputSource(new StringReader(rss)));
+            NodeList items = document.getElementsByTagName("item");
+            Map<String, NewsItem> result = new LinkedHashMap<>();
+            for (int i = 0; i < items.getLength(); i++) {
+                Element item = (Element) items.item(i);
+                String title = textContent(item, "title");
+                String link = textContent(item, "link");
+                if (title.isBlank() || link.isBlank()) {
+                    continue;
+                }
+                String url = normalizeUrl(baseUri, link);
+                result.putIfAbsent(url, new NewsItem(title, url, formatRssDate(textContent(item, "pubDate"))));
             }
+            return List.copyOf(result.values());
+        } catch (Exception e) {
+            return List.of();
         }
-
-        Map<String, CherinfoNewsItem> result = new LinkedHashMap<>();
-        for (int i = 0; i < candidates.size(); i++) {
-            Candidate candidate = candidates.get(i);
-            int nextStart = i + 1 < candidates.size() ? candidates.get(i + 1).linkStart() : html.length();
-            String publishedAt = extractPublishedAt(html.substring(candidate.contentStart(), nextStart));
-            result.putIfAbsent(
-                    candidate.url(),
-                    new CherinfoNewsItem(candidate.title(), candidate.url(), publishedAt)
-            );
-        }
-        return List.copyOf(result.values());
     }
 
-    public CherinfoNewsDetails parseDetails(String html, URI pageUri) {
+    public NewsDetails parseDetails(String html, URI pageUri) {
         if (html == null || html.isBlank()) {
-            return new CherinfoNewsDetails("", List.of());
+            return new NewsDetails("", List.of());
         }
 
         String textContent = findTextContent(html);
         List<String> imageUrls = extractImageUrls(html, textContent, pageUri);
-        return new CherinfoNewsDetails(extractText(textContent), imageUrls);
+        return new NewsDetails(extractText(textContent), imageUrls);
+    }
+
+    private static String textContent(Element element, String tagName) {
+        NodeList nodes = element.getElementsByTagName(tagName);
+        if (nodes.getLength() == 0) {
+            return "";
+        }
+        return nodes.item(0).getTextContent().trim();
+    }
+
+    private static String formatRssDate(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        try {
+            return OffsetDateTime.parse(value.trim(), DateTimeFormatter.RFC_1123_DATE_TIME)
+                    .format(RSS_DATE_FORMATTER);
+        } catch (DateTimeParseException e) {
+            return value.trim();
+        }
     }
 
     private static String normalizeUrl(URI baseUri, String href) {
@@ -106,23 +160,17 @@ public class CherinfoNewsParser {
         return resolved.toString();
     }
 
-    private static String extractPublishedAt(String htmlFragment) {
-        String text = cleanText(htmlFragment);
-        Matcher matcher = PUBLISHED_AT_PATTERN.matcher(text);
-        return matcher.find() ? matcher.group(1) : "";
-    }
-
     private static String cleanText(String html) {
         String withoutTags = TAG_PATTERN.matcher(html).replaceAll(" ");
         String decoded = decodeHtml(withoutTags);
         String normalized = WHITESPACE_PATTERN.matcher(decoded).replaceAll(" ").trim();
-        return normalized.replaceAll("\\s+([.,!?;:])", "$1");
+        return SPACE_BEFORE_PUNCTUATION_PATTERN.matcher(normalized).replaceAll("$1");
     }
 
     private static String findTextContent(String html) {
-        Matcher articleTextMatcher = ARTICLE_TEXT_PATTERN.matcher(html);
-        if (articleTextMatcher.find()) {
-            return trimArticleContent(html.substring(articleTextMatcher.end()));
+        int articleTextStart = articleTextStart(html);
+        if (articleTextStart >= 0) {
+            return trimArticleContent(html.substring(articleTextStart));
         }
         Matcher articleMatcher = ARTICLE_PATTERN.matcher(html);
         if (articleMatcher.find()) {
@@ -130,6 +178,30 @@ public class CherinfoNewsParser {
         }
         Matcher mainMatcher = MAIN_PATTERN.matcher(html);
         return trimArticleContent(mainMatcher.find() ? mainMatcher.group(1) : html);
+    }
+
+    private static int articleTextStart(String html) {
+        Matcher openingDivMatcher = OPENING_DIV_PATTERN.matcher(html);
+        while (openingDivMatcher.find()) {
+            if (hasCssClass(openingDivMatcher.group(), "article-text")) {
+                return openingDivMatcher.end();
+            }
+        }
+        return -1;
+    }
+
+    private static boolean hasCssClass(String tag, String cssClass) {
+        Matcher classAttributeMatcher = CLASS_ATTRIBUTE_PATTERN.matcher(tag);
+        if (!classAttributeMatcher.find()) {
+            return false;
+        }
+        String[] classes = WHITESPACE_PATTERN.split(classAttributeMatcher.group(2).trim());
+        for (String currentClass : classes) {
+            if (cssClass.equals(currentClass)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String extractText(String content) {
@@ -188,46 +260,55 @@ public class CherinfoNewsParser {
                 || "Новости".equalsIgnoreCase(text);
     }
 
-    private static List<String> extractImageUrls(String html, String textContent, URI pageUri) {
-        Set<String> imageUrls = new LinkedHashSet<>();
-        Matcher metaImageMatcher = META_IMAGE_PATTERN.matcher(html);
-        while (metaImageMatcher.find()) {
-            String imageUrl = normalizeUrl(pageUri, metaImageMatcher.group(3));
-            if (isNewsImage(imageUrl)) {
-                imageUrls.add(imageUrl);
-            }
+    private List<String> extractImageUrls(String html, String textContent, URI pageUri) {
+        List<String> galleryImageUrls = extractGalleryImageUrls(textContent, pageUri);
+        if (!galleryImageUrls.isEmpty()) {
+            return galleryImageUrls;
         }
 
+        List<String> articleImageUrls = extractArticleImageUrls(textContent, pageUri);
+        if (!articleImageUrls.isEmpty()) {
+            return articleImageUrls;
+        }
+
+        return extractMetaImageUrls(html, pageUri);
+    }
+
+    private List<String> extractGalleryImageUrls(String textContent, URI pageUri) {
+        ImageUrls imageUrls = new ImageUrls(imagePaths);
+        Matcher galleryMatcher = GALLERY_PATTERN.matcher(textContent);
+        while (galleryMatcher.find()) {
+            Matcher linkMatcher = LINK_PATTERN.matcher(galleryMatcher.group(2));
+            while (linkMatcher.find()) {
+                imageUrls.add(bestQualityImageUrl(normalizeUrl(pageUri, linkMatcher.group(2))));
+            }
+        }
+        return imageUrls.values();
+    }
+
+    private List<String> extractArticleImageUrls(String textContent, URI pageUri) {
+        ImageUrls imageUrls = new ImageUrls(imagePaths);
         Matcher matcher = IMAGE_PATTERN.matcher(textContent);
         while (matcher.find()) {
             String imageUrl = normalizeUrl(pageUri, matcher.group(2));
-            if (isNewsImage(imageUrl)) {
-                imageUrls.add(imageUrl);
-            }
+            imageUrls.add(bestQualityImageUrl(imageUrl));
         }
-        return List.copyOf(imageUrls);
+        return imageUrls.values();
     }
 
-    private static boolean isNewsImage(String imageUrl) {
-        String lowerCaseUrl = imageUrl.toLowerCase();
-        int queryIndex = lowerCaseUrl.indexOf('?');
-        if (queryIndex >= 0) {
-            lowerCaseUrl = lowerCaseUrl.substring(0, queryIndex);
+    private List<String> extractMetaImageUrls(String html, URI pageUri) {
+        ImageUrls imageUrls = new ImageUrls(imagePaths);
+        Matcher metaImageMatcher = META_IMAGE_PATTERN.matcher(html);
+        while (metaImageMatcher.find()) {
+            imageUrls.add(normalizeUrl(pageUri, metaImageMatcher.group(3)));
         }
-        int fragmentIndex = lowerCaseUrl.indexOf('#');
-        if (fragmentIndex >= 0) {
-            lowerCaseUrl = lowerCaseUrl.substring(0, fragmentIndex);
-        }
-        return (lowerCaseUrl.endsWith(".jpg")
-                || lowerCaseUrl.endsWith(".jpeg")
-                || lowerCaseUrl.endsWith(".png")
-                || lowerCaseUrl.endsWith(".webp"))
-                && !lowerCaseUrl.contains("logo")
-                && !lowerCaseUrl.contains("banner")
-                && !lowerCaseUrl.contains("advert")
-                && !lowerCaseUrl.contains("reklam")
-                && !lowerCaseUrl.contains("counter")
-                && !lowerCaseUrl.contains("icon");
+        return imageUrls.values();
+    }
+
+    private String bestQualityImageUrl(String imageUrl) {
+        return imageUrl
+                .replace(imagePaths.mediumPath(), imagePaths.bigPath())
+                .replace(imagePaths.smallPath(), imagePaths.bigPath());
     }
 
     private static String decodeHtml(String value) {
@@ -247,6 +328,62 @@ public class CherinfoNewsParser {
                 .replace("&gt;", ">");
     }
 
-    private record Candidate(String title, String url, int linkStart, int contentStart) {
+    private static final class ImageUrls {
+
+        private final ImagePaths imagePaths;
+        private final Set<String> keys = new LinkedHashSet<>();
+        private final List<String> values = new ArrayList<>();
+
+        private ImageUrls(ImagePaths imagePaths) {
+            this.imagePaths = imagePaths;
+        }
+
+        private void add(String imageUrl) {
+            if (imageUrl.isBlank() || !isNewsImage(imageUrl)) {
+                return;
+            }
+            if (keys.add(imageDeduplicationKey(imageUrl))) {
+                values.add(imageUrl);
+            }
+        }
+
+        private List<String> values() {
+            return List.copyOf(values);
+        }
+
+        private String imageDeduplicationKey(String imageUrl) {
+            URI uri = URI.create(imageUrl);
+            String path = uri.getPath()
+                    .replace(imagePaths.mediumPath(), imagePaths.bigPath())
+                    .replace(imagePaths.smallPath(), imagePaths.bigPath());
+            String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
+            String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
+            return scheme + "://" + host + path;
+        }
+
+        private static boolean isNewsImage(String imageUrl) {
+            String lowerCaseUrl = imageUrl.toLowerCase(Locale.ROOT);
+            int queryIndex = lowerCaseUrl.indexOf('?');
+            if (queryIndex >= 0) {
+                lowerCaseUrl = lowerCaseUrl.substring(0, queryIndex);
+            }
+            int fragmentIndex = lowerCaseUrl.indexOf('#');
+            if (fragmentIndex >= 0) {
+                lowerCaseUrl = lowerCaseUrl.substring(0, fragmentIndex);
+            }
+            return (lowerCaseUrl.endsWith(".jpg")
+                    || lowerCaseUrl.endsWith(".jpeg")
+                    || lowerCaseUrl.endsWith(".png")
+                    || lowerCaseUrl.endsWith(".webp"))
+                    && !lowerCaseUrl.contains("logo")
+                    && !lowerCaseUrl.contains("banner")
+                    && !lowerCaseUrl.contains("advert")
+                    && !lowerCaseUrl.contains("reklam")
+                    && !lowerCaseUrl.contains("counter")
+                    && !lowerCaseUrl.contains("icon");
+        }
+    }
+
+    private record ImagePaths(String bigPath, String mediumPath, String smallPath) {
     }
 }

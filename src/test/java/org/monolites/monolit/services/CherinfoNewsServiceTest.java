@@ -7,9 +7,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.monolites.monolit.models.dtos.CherinfoNewsDetails;
-import org.monolites.monolit.models.dtos.CherinfoNewsItem;
+import org.monolites.monolit.models.dtos.NewsDetails;
+import org.monolites.monolit.models.dtos.NewsItem;
 import org.monolites.monolit.models.entities.CherinfoNewsState;
+import org.monolites.monolit.models.exception.SendMessageException;
 import org.monolites.monolit.repositories.CherinfoNewsStateRepository;
 
 import java.io.File;
@@ -36,7 +37,7 @@ class CherinfoNewsServiceTest {
     private static final Instant NOW = Instant.parse("2026-06-24T08:00:00Z");
 
     @Mock
-    private CherinfoNewsClient newsClient;
+    private NewsSourceClient newsClient;
     @Mock
     private CherinfoNewsImageDownloader imageDownloader;
     @Mock
@@ -59,9 +60,9 @@ class CherinfoNewsServiceTest {
 
     @Test
     void sendsLastFiveNewsOnEmptyStorageAndStoresThem() throws Exception {
-        List<CherinfoNewsItem> fetchedNews = news(6);
+        List<NewsItem> fetchedNews = news(6);
         when(newsClient.fetchLatestNews()).thenReturn(fetchedNews);
-        for (CherinfoNewsItem news : fetchedNews.subList(0, 5)) {
+        for (NewsItem news : fetchedNews.subList(0, 5)) {
             when(newsClient.fetchNewsDetails(news.url())).thenReturn(detailsWithoutImages(news));
         }
         when(newsStateRepository.findById("cherinfo")).thenReturn(Optional.empty());
@@ -94,9 +95,9 @@ class CherinfoNewsServiceTest {
 
     @Test
     void storesOnlyRecentSentNewsUrlsInSingleStateRow() throws Exception {
-        List<CherinfoNewsItem> fetchedNews = news(55);
+        List<NewsItem> fetchedNews = news(55);
         when(newsClient.fetchLatestNews()).thenReturn(fetchedNews);
-        for (CherinfoNewsItem news : fetchedNews) {
+        for (NewsItem news : fetchedNews) {
             when(newsClient.fetchNewsDetails(news.url())).thenReturn(detailsWithoutImages(news));
         }
         when(newsStateRepository.findById("cherinfo")).thenReturn(Optional.of(state("https://cherinfo.ru/news/old-news")));
@@ -114,10 +115,10 @@ class CherinfoNewsServiceTest {
 
     @Test
     void sendsOnlyFiveNewsWhenStartupAndHourlyChecksOverlap() throws Exception {
-        List<CherinfoNewsItem> fetchedNews = news(10);
+        List<NewsItem> fetchedNews = news(10);
         AtomicReference<CherinfoNewsState> storedState = new AtomicReference<>();
         when(newsClient.fetchLatestNews()).thenReturn(fetchedNews);
-        for (CherinfoNewsItem news : fetchedNews.subList(0, 5)) {
+        for (NewsItem news : fetchedNews.subList(0, 5)) {
             when(newsClient.fetchNewsDetails(news.url())).thenReturn(detailsWithoutImages(news));
         }
         when(newsStateRepository.findById("cherinfo")).thenAnswer(invocation -> Optional.ofNullable(storedState.get()));
@@ -145,10 +146,10 @@ class CherinfoNewsServiceTest {
 
     @Test
     void doesNotSendDuplicatesAfterInitialPublication() throws Exception {
-        List<CherinfoNewsItem> fetchedNews = news(3);
+        List<NewsItem> fetchedNews = news(3);
         AtomicReference<CherinfoNewsState> storedState = new AtomicReference<>();
         when(newsClient.fetchLatestNews()).thenReturn(fetchedNews);
-        for (CherinfoNewsItem news : fetchedNews) {
+        for (NewsItem news : fetchedNews) {
             when(newsClient.fetchNewsDetails(news.url())).thenReturn(detailsWithoutImages(news));
         }
         when(imageDownloader.downloadImages(anyList())).thenReturn(List.of());
@@ -168,9 +169,9 @@ class CherinfoNewsServiceTest {
 
     @Test
     void sendsOnlyNewNewsOnNonEmptyStorage() throws Exception {
-        CherinfoNewsItem newest = newsItem(3);
-        CherinfoNewsItem middle = newsItem(2);
-        CherinfoNewsItem old = newsItem(1);
+        NewsItem newest = newsItem(3);
+        NewsItem middle = newsItem(2);
+        NewsItem old = newsItem(1);
         when(newsClient.fetchLatestNews()).thenReturn(List.of(newest, middle, old));
         when(newsClient.fetchNewsDetails(newest.url())).thenReturn(detailsWithoutImages(newest));
         when(newsClient.fetchNewsDetails(middle.url())).thenReturn(detailsWithoutImages(middle));
@@ -199,8 +200,88 @@ class CherinfoNewsServiceTest {
     }
 
     @Test
+    void restoresInterruptFlagWhenNewsFetchIsInterrupted() throws Exception {
+        when(newsClient.fetchLatestNews()).thenThrow(new InterruptedException("interrupted"));
+
+        try {
+            service.publishLatestNews();
+
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+            verify(newsStateRepository, never()).findById(anyString());
+            verify(newsStateRepository, never()).save(any());
+            verify(messageSender, never()).sendMessage(anyString());
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
+    @Test
+    void stopsBatchWithoutStateChangeWhenDetailsFetchIsInterrupted() throws Exception {
+        NewsItem news = newsItem(1);
+        when(newsClient.fetchLatestNews()).thenReturn(List.of(news));
+        when(newsClient.fetchNewsDetails(news.url())).thenThrow(new InterruptedException("interrupted"));
+        when(newsStateRepository.findById("cherinfo")).thenReturn(Optional.empty());
+
+        try {
+            service.publishLatestNews();
+
+            assertThat(Thread.currentThread().isInterrupted()).isTrue();
+            verify(newsStateRepository, never()).save(any());
+            verify(messageSender, never()).sendMessage(anyString());
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
+    @Test
+    void treatsNullDownloadedImagesAsNoAttachments() throws Exception {
+        NewsItem news = newsItem(1);
+        when(newsClient.fetchLatestNews()).thenReturn(List.of(news));
+        when(newsClient.fetchNewsDetails(news.url())).thenReturn(new NewsDetails("Полный текст новости", null));
+        when(newsStateRepository.findById("cherinfo")).thenReturn(Optional.empty());
+        when(imageDownloader.downloadImages(anyList())).thenReturn(null);
+        ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
+
+        service.publishLatestNews();
+
+        verify(messageSender).sendMessage(messageCaptor.capture());
+        assertThat(messageCaptor.getValue()).contains("Полный текст новости");
+        verify(newsStateRepository).save(any());
+    }
+
+    @Test
+    void doesNotStoreNewsWhenTextMessageSendingFails() throws Exception {
+        NewsItem news = newsItem(1);
+        when(newsClient.fetchLatestNews()).thenReturn(List.of(news));
+        when(newsClient.fetchNewsDetails(news.url())).thenReturn(detailsWithoutImages(news));
+        when(newsStateRepository.findById("cherinfo")).thenReturn(Optional.empty());
+        when(imageDownloader.downloadImages(anyList())).thenReturn(List.of());
+        doThrow(new IllegalStateException("VK is down")).when(messageSender).sendMessage(anyString());
+
+        service.publishLatestNews();
+
+        verify(newsStateRepository, never()).save(any());
+    }
+
+    @Test
+    void usesFallbackPublishedAtWhenNewsDateIsBlank() throws Exception {
+        NewsItem news = new NewsItem("Новость без даты", "https://cherinfo.ru/news/no-date", " ");
+        when(newsClient.fetchLatestNews()).thenReturn(List.of(news));
+        when(newsClient.fetchNewsDetails(news.url())).thenReturn(new NewsDetails("Полный текст новости", List.of()));
+        when(newsStateRepository.findById("cherinfo")).thenReturn(Optional.empty());
+        when(imageDownloader.downloadImages(anyList())).thenReturn(List.of());
+        ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
+
+        service.publishLatestNews();
+
+        verify(messageSender).sendMessage(messageCaptor.capture());
+        assertThat(messageCaptor.getValue()).contains("Дата не указана");
+        verify(newsStateRepository).save(any());
+    }
+
+    @Test
     void sendsFullNewsWithUpToTenImagesAndDeletesTemporaryFiles(@TempDir Path tempDir) throws Exception {
-        CherinfoNewsItem news = newsItem(1);
+        NewsItem news = newsItem(1);
         List<String> imageUrls = java.util.stream.IntStream.rangeClosed(1, 12)
                 .mapToObj(index -> "https://cherinfo.ru/upload/news/" + index + ".jpg")
                 .toList();
@@ -211,7 +292,7 @@ class CherinfoNewsServiceTest {
             imageFiles.add(imageFile.toFile());
         }
         when(newsClient.fetchLatestNews()).thenReturn(List.of(news));
-        when(newsClient.fetchNewsDetails(news.url())).thenReturn(new CherinfoNewsDetails(
+        when(newsClient.fetchNewsDetails(news.url())).thenReturn(new NewsDetails(
                 "Полный текст новости без ссылки.",
                 imageUrls
         ));
@@ -237,7 +318,7 @@ class CherinfoNewsServiceTest {
 
     @Test
     void sendsFullNewsWithoutImagesWhenImageDownloadFails() throws Exception {
-        CherinfoNewsItem news = newsItem(1);
+        NewsItem news = newsItem(1);
         when(newsClient.fetchLatestNews()).thenReturn(List.of(news));
         when(newsClient.fetchNewsDetails(news.url())).thenReturn(details(news));
         when(newsStateRepository.findById("cherinfo")).thenReturn(Optional.empty());
@@ -255,10 +336,33 @@ class CherinfoNewsServiceTest {
     }
 
     @Test
-    void skipsNewsWithoutFullTextAndDoesNotStoreIt() throws Exception {
-        CherinfoNewsItem news = newsItem(1);
+    void fallsBackToTextMessageWhenVkRejectsImageAttachments(@TempDir Path tempDir) throws Exception {
+        NewsItem news = newsItem(1);
+        Path imageFile = tempDir.resolve("image.jpg");
+        Files.writeString(imageFile, "image");
         when(newsClient.fetchLatestNews()).thenReturn(List.of(news));
-        when(newsClient.fetchNewsDetails(news.url())).thenReturn(new CherinfoNewsDetails("", List.of()));
+        when(newsClient.fetchNewsDetails(news.url())).thenReturn(details(news));
+        when(newsStateRepository.findById("cherinfo")).thenReturn(Optional.empty());
+        when(imageDownloader.downloadImages(anyList())).thenReturn(List.of(imageFile.toFile()));
+        doThrow(new SendMessageException("photo is undefined"))
+                .when(messageSender).sendMessage(anyString(), anyMap());
+        ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
+
+        service.publishLatestNews();
+
+        verify(messageSender).sendMessage(messageCaptor.capture());
+        assertThat(messageCaptor.getValue())
+                .contains("Полный текст новости 1")
+                .doesNotContain(news.url());
+        assertThat(imageFile).doesNotExist();
+        verify(newsStateRepository).save(any());
+    }
+
+    @Test
+    void skipsNewsWithoutFullTextAndDoesNotStoreIt() throws Exception {
+        NewsItem news = newsItem(1);
+        when(newsClient.fetchLatestNews()).thenReturn(List.of(news));
+        when(newsClient.fetchNewsDetails(news.url())).thenReturn(new NewsDetails("", List.of()));
         when(newsStateRepository.findById("cherinfo")).thenReturn(Optional.empty());
 
         service.publishLatestNews();
@@ -270,10 +374,10 @@ class CherinfoNewsServiceTest {
 
     @Test
     void splitsLongFullNewsWithoutAddingUrl() throws Exception {
-        CherinfoNewsItem news = newsItem(1);
+        NewsItem news = newsItem(1);
         String longText = "Абзац ".repeat(700);
         when(newsClient.fetchLatestNews()).thenReturn(List.of(news));
-        when(newsClient.fetchNewsDetails(news.url())).thenReturn(new CherinfoNewsDetails(longText, List.of()));
+        when(newsClient.fetchNewsDetails(news.url())).thenReturn(new NewsDetails(longText, List.of()));
         when(newsStateRepository.findById("cherinfo")).thenReturn(Optional.empty());
         when(imageDownloader.downloadImages(anyList())).thenReturn(List.of());
         ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
@@ -300,29 +404,29 @@ class CherinfoNewsServiceTest {
         verify(messageSender, never()).sendMessage(anyString());
     }
 
-    private static List<CherinfoNewsItem> news(int count) {
+    private static List<NewsItem> news(int count) {
         return java.util.stream.IntStream.rangeClosed(1, count)
                 .mapToObj(CherinfoNewsServiceTest::newsItem)
                 .toList();
     }
 
-    private static CherinfoNewsItem newsItem(int id) {
-        return new CherinfoNewsItem(
+    private static NewsItem newsItem(int id) {
+        return new NewsItem(
                 "Новость " + id,
                 "https://cherinfo.ru/news/" + id + "-news",
                 "Сегодня 0" + id + ":00"
         );
     }
 
-    private static CherinfoNewsDetails details(CherinfoNewsItem news) {
-        return new CherinfoNewsDetails(
+    private static NewsDetails details(NewsItem news) {
+        return new NewsDetails(
                 "Полный текст новости " + news.title().replace("Новость ", ""),
                 List.of("https://cherinfo.ru/upload/news/image.jpg")
         );
     }
 
-    private static CherinfoNewsDetails detailsWithoutImages(CherinfoNewsItem news) {
-        return new CherinfoNewsDetails(
+    private static NewsDetails detailsWithoutImages(NewsItem news) {
+        return new NewsDetails(
                 "Полный текст новости " + news.title().replace("Новость ", ""),
                 List.of()
         );

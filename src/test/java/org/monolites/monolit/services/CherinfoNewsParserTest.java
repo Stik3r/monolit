@@ -1,8 +1,8 @@
 package org.monolites.monolit.services;
 
 import org.junit.jupiter.api.Test;
-import org.monolites.monolit.models.dtos.CherinfoNewsDetails;
-import org.monolites.monolit.models.dtos.CherinfoNewsItem;
+import org.monolites.monolit.models.dtos.NewsDetails;
+import org.monolites.monolit.models.dtos.NewsItem;
 
 import java.net.URI;
 import java.util.List;
@@ -11,56 +11,54 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class CherinfoNewsParserTest {
 
-    private final CherinfoNewsParser parser = new CherinfoNewsParser();
+    private static final String IMAGE_BIG_PATH = "/image_big/";
+    private static final String IMAGE_MEDIUM_PATH = "/image_medium/";
+    private static final String IMAGE_SMALL_PATH = "/image_small/";
+
+    private final CherinfoNewsParser parser = parser();
 
     @Test
-    void parsesNewsLinksWithTitlesDatesAndAbsoluteUrls() {
-        String html = """
-                <a href="/news/100-empty"><img src="/image.jpg"></a>
-                <a class="news-item" href="/news/101-first-news">Первая &amp; важная новость</a>
-                <span>Сегодня 08:30 46 0</span>
-                <a href="/news/102-second-news">Вторая новость</a>
-                <div>23.06.2026 17:01 1176 40</div>
+    void parsesNewsItemsFromRss() {
+        String rss = """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <rss version="2.0">
+                    <channel>
+                        <item>
+                            <title>Первая &amp; важная новость</title>
+                            <link>https://cherinfo.ru/news/101-first-news</link>
+                            <pubDate>Wed, 24 Jun 2026 18:30:00 +0300</pubDate>
+                        </item>
+                        <item>
+                            <title>Вторая новость</title>
+                            <link>/news/102-second-news</link>
+                            <pubDate>Wed, 24 Jun 2026 17:30:00 +0300</pubDate>
+                        </item>
+                        <item>
+                            <title>Без ссылки</title>
+                        </item>
+                    </channel>
+                </rss>
                 """;
 
-        List<CherinfoNewsItem> news = parser.parse(html, URI.create("https://cherinfo.ru/news"));
+        List<NewsItem> news = parser.parseRss(rss, URI.create("https://cherinfo.ru/rss/news/"));
 
         assertThat(news).containsExactly(
-                new CherinfoNewsItem(
+                new NewsItem(
                         "Первая & важная новость",
                         "https://cherinfo.ru/news/101-first-news",
-                        "Сегодня 08:30"
+                        "24.06.2026 18:30"
                 ),
-                new CherinfoNewsItem(
+                new NewsItem(
                         "Вторая новость",
                         "https://cherinfo.ru/news/102-second-news",
-                        "23.06.2026 17:01"
+                        "24.06.2026 17:30"
                 )
         );
     }
 
     @Test
-    void ignoresItemsWithoutTextAndDeduplicatesByUrl() {
-        String html = """
-                <a href="/news/101-first-news"><img alt="Лента новостей"></a>
-                <a href="/news/101-first-news">Первая новость</a>
-                Сегодня 08:30
-                <a href="/news/101-first-news">Дубль первой новости</a>
-                Сегодня 08:30
-                """;
-
-        List<CherinfoNewsItem> news = parser.parse(html, URI.create("https://cherinfo.ru/news"));
-
-        assertThat(news).singleElement().satisfies(item -> {
-            assertThat(item.title()).isEqualTo("Первая новость");
-            assertThat(item.url()).isEqualTo("https://cherinfo.ru/news/101-first-news");
-            assertThat(item.publishedAtText()).isEqualTo("Сегодня 08:30");
-        });
-    }
-
-    @Test
-    void returnsEmptyListForBlankHtml() {
-        assertThat(parser.parse("", URI.create("https://cherinfo.ru/news"))).isEmpty();
+    void returnsEmptyListForBlankRss() {
+        assertThat(parser.parseRss("", URI.create("https://cherinfo.ru/rss/news/"))).isEmpty();
     }
 
     @Test
@@ -89,16 +87,140 @@ class CherinfoNewsParserTest {
                 </html>
                 """;
 
-        CherinfoNewsDetails details = parser.parseDetails(
+        NewsDetails details = parser.parseDetails(
                 html,
                 URI.create("https://cherinfo.ru/news/101-first-news")
         );
 
         assertThat(details.text()).isEqualTo("Первый абзац с внутренней ссылкой.\n\nВторой абзац.");
         assertThat(details.imageUrls()).containsExactly(
-                "https://st.cherinfo.ru/med/101.jpg",
                 "https://cherinfo.ru/upload/news/first.jpg",
                 "https://cherinfo.ru/upload/news/second.webp?size=large"
+        );
+    }
+
+    @Test
+    void returnsOnlyArticleImageWhenMetaImageDuplicatesSingleNewsImage() {
+        String html = """
+                <html>
+                <head>
+                    <meta property="og:image" content="https://st.cherinfo.ru/med/146922.jpg">
+                    <meta itemprop="image" content="https://st.cherinfo.ru/med/146922.jpg">
+                </head>
+                <body>
+                <main>
+                    <div class="js-mediator-article article-text">
+                        <p>Текст новости.</p>
+                        <p><img alt="Новости Черинфо" class="wide img-responsive" src="https://st.cherinfo.ru/pages/2026/06/24/gosuslugi001.jpg"></p>
+                    </div>
+                </main>
+                </body>
+                </html>
+                """;
+
+        NewsDetails details = parser.parseDetails(
+                html,
+                URI.create("https://cherinfo.ru/news/146922-vologodskaa-oblast")
+        );
+
+        assertThat(details.imageUrls()).containsExactly(
+                "https://st.cherinfo.ru/pages/2026/06/24/gosuslugi001.jpg"
+        );
+    }
+
+    @Test
+    void returnsGalleryImagesInHighQualityWithoutMetaImage() {
+        String html = """
+                <html>
+                <head>
+                    <meta property="og:image" content="https://st.cherinfo.ru/med/146919.jpg">
+                </head>
+                <body>
+                <main>
+                    <div class="js-mediator-article article-text">
+                        <p>Текст новости.</p>
+                        <div class="widget print-hidden">
+                            <div class="fotorama" data-nav="thumbs">
+                                <a href="https://st.cherinfo.ru/image_big/first.jpg">
+                                    <img src="https://st.cherinfo.ru/image_medium/first.jpg" class="img-responsive">
+                                </a>
+                                <a href="/image_big/second.jpg">
+                                    <img src="/image_medium/second.jpg" class="img-responsive">
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+                </body>
+                </html>
+                """;
+
+        NewsDetails details = parser.parseDetails(
+                html,
+                URI.create("https://cherinfo.ru/news/146919-v-cerepovce")
+        );
+
+        assertThat(details.imageUrls()).containsExactly(
+                "https://st.cherinfo.ru/image_big/first.jpg",
+                "https://cherinfo.ru/image_big/second.jpg"
+        );
+    }
+
+    @Test
+    void usesConfiguredImageQualityPathsForGalleryImages() {
+        CherinfoNewsParser configuredParser = new CherinfoNewsParser(
+                "/large/",
+                "/middle/",
+                "/preview/"
+        );
+        String html = """
+                <html>
+                <body>
+                <main>
+                    <div class="js-mediator-article article-text">
+                        <p>Текст новости.</p>
+                        <div class="fotorama">
+                            <a href="/middle/first.jpg">
+                                <img src="/preview/first.jpg">
+                            </a>
+                        </div>
+                    </div>
+                </main>
+                </body>
+                </html>
+                """;
+
+        NewsDetails details = configuredParser.parseDetails(
+                html,
+                URI.create("https://cherinfo.ru/news/146919-v-cerepovce")
+        );
+
+        assertThat(details.imageUrls()).containsExactly("https://cherinfo.ru/large/first.jpg");
+    }
+
+    @Test
+    void deduplicatesNormalizedImageUrls() {
+        String html = """
+                <html>
+                <body>
+                <main>
+                    <div class="js-mediator-article article-text">
+                        <p>Текст новости.</p>
+                        <img src="/upload/news/photo.jpg?size=large&amp;v=1">
+                        <img data-src="https://cherinfo.ru/upload/news/photo.jpg?size=small">
+                    </div>
+                </main>
+                </body>
+                </html>
+                """;
+
+        NewsDetails details = parser.parseDetails(
+                html,
+                URI.create("https://cherinfo.ru/news/101-first-news")
+        );
+
+        assertThat(details.imageUrls()).containsExactly(
+                "https://cherinfo.ru/upload/news/photo.jpg?size=large&v=1"
         );
     }
 
@@ -132,7 +254,7 @@ class CherinfoNewsParserTest {
                 </html>
                 """;
 
-        CherinfoNewsDetails details = parser.parseDetails(
+        NewsDetails details = parser.parseDetails(
                 html,
                 URI.create("https://cherinfo.ru/news/146906-georgij-filimonov")
         );
@@ -145,17 +267,18 @@ class CherinfoNewsParserTest {
                 .doesNotContain("#Новости")
                 .doesNotContain("Сегодня 13:30")
                 .doesNotContain("Другие материалы");
-        assertThat(details.imageUrls()).containsExactly(
-                "https://st.cherinfo.ru/med/main.jpg",
-                "https://cherinfo.ru/upload/news/main.jpg"
-        );
+        assertThat(details.imageUrls()).containsExactly("https://cherinfo.ru/upload/news/main.jpg");
     }
 
     @Test
     void returnsBlankDetailsForBlankHtml() {
-        CherinfoNewsDetails details = parser.parseDetails("", URI.create("https://cherinfo.ru/news/101-first-news"));
+        NewsDetails details = parser.parseDetails("", URI.create("https://cherinfo.ru/news/101-first-news"));
 
         assertThat(details.text()).isBlank();
         assertThat(details.imageUrls()).isEmpty();
+    }
+
+    private static CherinfoNewsParser parser() {
+        return new CherinfoNewsParser(IMAGE_BIG_PATH, IMAGE_MEDIUM_PATH, IMAGE_SMALL_PATH);
     }
 }

@@ -1,8 +1,8 @@
 package org.monolites.monolit.services;
 
 import lombok.extern.slf4j.Slf4j;
-import org.monolites.monolit.models.dtos.CherinfoNewsDetails;
-import org.monolites.monolit.models.dtos.CherinfoNewsItem;
+import org.monolites.monolit.models.dtos.NewsDetails;
+import org.monolites.monolit.models.dtos.NewsItem;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -23,34 +23,34 @@ public class CherinfoNewsHttpClient implements CherinfoNewsClient {
 
     private final CherinfoNewsParser parser;
     private final HttpClient httpClient;
-    private final URI newsUri;
+    private final URI rssUri;
 
     public CherinfoNewsHttpClient(
             CherinfoNewsParser parser,
-            @Value("${monolit.news.cherinfo.url}") String newsUrl
+            @Value("${monolit.news.cherinfo.rss-url}") String rssUrl
     ) {
         this.parser = parser;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(REQUEST_TIMEOUT)
                 .build();
-        this.newsUri = URI.create(newsUrl.trim());
+        this.rssUri = URI.create(rssUrl.trim());
     }
 
     @Override
-    public List<CherinfoNewsItem> fetchLatestNews() throws IOException, InterruptedException {
-        String html = fetchHtml(newsUri);
-        List<CherinfoNewsItem> news = parser.parse(html, newsUri);
+    public List<NewsItem> fetchLatestNews() throws IOException, InterruptedException {
+        String rss = fetchText(rssUri);
+        List<NewsItem> news = parser.parseRss(rss, rssUri);
         log.debug("Parsed {} Cherinfo news items", news.size());
         return news;
     }
 
     @Override
-    public CherinfoNewsDetails fetchNewsDetails(String newsUrl) throws IOException, InterruptedException {
+    public NewsDetails fetchNewsDetails(String newsUrl) throws IOException, InterruptedException {
         URI uri = URI.create(newsUrl.trim());
-        return parser.parseDetails(fetchHtml(uri), uri);
+        return parser.parseDetails(fetchText(uri), uri);
     }
 
-    private String fetchHtml(URI uri) throws IOException, InterruptedException {
+    private String fetchText(URI uri) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder(uri)
                 .timeout(REQUEST_TIMEOUT)
                 .header("User-Agent", USER_AGENT)

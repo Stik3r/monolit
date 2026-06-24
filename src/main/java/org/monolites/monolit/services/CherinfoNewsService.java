@@ -2,8 +2,8 @@ package org.monolites.monolit.services;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.monolites.monolit.models.dtos.CherinfoNewsDetails;
-import org.monolites.monolit.models.dtos.CherinfoNewsItem;
+import org.monolites.monolit.models.dtos.NewsDetails;
+import org.monolites.monolit.models.dtos.NewsItem;
 import org.monolites.monolit.models.entities.CherinfoNewsState;
 import org.monolites.monolit.repositories.CherinfoNewsStateRepository;
 import org.springframework.stereotype.Service;
@@ -13,7 +13,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Clock;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -32,25 +31,25 @@ public class CherinfoNewsService {
     private static final int MAX_MESSAGE_LENGTH = 3_900;
     private static final int RECENT_SENT_URL_LIMIT = 50;
 
-    private final CherinfoNewsClient newsClient;
+    private final NewsSourceClient newsClient;
     private final CherinfoNewsImageDownloader imageDownloader;
     private final CherinfoNewsStateRepository newsStateRepository;
     private final VkMessageSenderService messageSender;
     private final Clock reminderClock;
 
     public synchronized void publishLatestNews() {
-        Optional<List<CherinfoNewsItem>> fetchedNewsOptional = fetchNews();
+        Optional<List<NewsItem>> fetchedNewsOptional = fetchNews();
         if (fetchedNewsOptional.isEmpty()) {
             return;
         }
-        List<CherinfoNewsItem> fetchedNews = fetchedNewsOptional.get();
+        List<NewsItem> fetchedNews = fetchedNewsOptional.get();
         if (fetchedNews.isEmpty()) {
             log.warn("No Cherinfo news items were parsed");
             return;
         }
 
         CherinfoNewsState state = loadState();
-        List<CherinfoNewsItem> newsToSend = state.getLatestNewsUrl() == null || state.getLatestNewsUrl().isBlank()
+        List<NewsItem> newsToSend = state.getLatestNewsUrl() == null || state.getLatestNewsUrl().isBlank()
                 ? fetchedNews.stream().limit(INITIAL_NEWS_LIMIT).toList()
                 : newNewsBeforeCheckpoint(fetchedNews, state);
         if (newsToSend.isEmpty()) {
@@ -58,9 +57,7 @@ public class CherinfoNewsService {
             return;
         }
 
-        List<CherinfoNewsItem> orderedNews = new ArrayList<>(newsToSend);
-        Collections.reverse(orderedNews);
-        for (CherinfoNewsItem news : orderedNews) {
+        for (NewsItem news : newsToSend.reversed()) {
             if (publishNews(news)) {
                 rememberSentUrl(state, news.url());
                 newsStateRepository.save(state);
@@ -71,12 +68,12 @@ public class CherinfoNewsService {
         }
     }
 
-    private boolean publishNews(CherinfoNewsItem news) {
-        Optional<CherinfoNewsDetails> detailsOptional = fetchDetails(news);
+    private boolean publishNews(NewsItem news) {
+        Optional<NewsDetails> detailsOptional = fetchDetails(news);
         if (detailsOptional.isEmpty()) {
             return false;
         }
-        CherinfoNewsDetails details = detailsOptional.get();
+        NewsDetails details = detailsOptional.get();
         if (details.text() == null || details.text().isBlank()) {
             log.warn("Cherinfo news details do not contain full text for {}", news.url());
             return false;
@@ -104,7 +101,7 @@ public class CherinfoNewsService {
         }
     }
 
-    private Optional<List<CherinfoNewsItem>> fetchNews() {
+    private Optional<List<NewsItem>> fetchNews() {
         try {
             return Optional.of(newsClient.fetchLatestNews());
         } catch (InterruptedException e) {
@@ -117,7 +114,7 @@ public class CherinfoNewsService {
         }
     }
 
-    private Optional<CherinfoNewsDetails> fetchDetails(CherinfoNewsItem news) {
+    private Optional<NewsDetails> fetchDetails(NewsItem news) {
         try {
             return Optional.of(newsClient.fetchNewsDetails(news.url()));
         } catch (InterruptedException e) {
@@ -142,14 +139,14 @@ public class CherinfoNewsService {
                 });
     }
 
-    private static List<CherinfoNewsItem> newNewsBeforeCheckpoint(
-            List<CherinfoNewsItem> fetchedNews,
+    private static List<NewsItem> newNewsBeforeCheckpoint(
+            List<NewsItem> fetchedNews,
             CherinfoNewsState state
     ) {
-        List<CherinfoNewsItem> newsToSend = new ArrayList<>();
+        List<NewsItem> newsToSend = new ArrayList<>();
         Set<String> sentUrls = sentUrls(state);
         boolean checkpointFound = false;
-        for (CherinfoNewsItem news : fetchedNews) {
+        for (NewsItem news : fetchedNews) {
             if (news.url().equals(state.getLatestNewsUrl())) {
                 checkpointFound = true;
                 break;
@@ -204,7 +201,12 @@ public class CherinfoNewsService {
         if (imageFiles.isEmpty()) {
             messageSender.sendMessage(messageParts.getFirst());
         } else {
-            messageSender.sendMessage(messageParts.getFirst(), imageMap(imageFiles));
+            try {
+                messageSender.sendMessage(messageParts.getFirst(), imageMap(imageFiles));
+            } catch (RuntimeException e) {
+                log.warn("Failed to send Cherinfo news images, sending text without attachments: {}", e.getMessage());
+                messageSender.sendMessage(messageParts.getFirst());
+            }
         }
         for (int i = 1; i < messageParts.size(); i++) {
             messageSender.sendMessage(messageParts.get(i));
@@ -257,10 +259,10 @@ public class CherinfoNewsService {
         }
     }
 
-    private static String formatMessage(CherinfoNewsItem news, CherinfoNewsDetails details) {
+    private static String formatMessage(NewsItem news, NewsDetails details) {
         String publishedAt = news.publishedAtText() == null || news.publishedAtText().isBlank()
                 ? "Дата не указана"
                 : news.publishedAtText();
-        return "Новость Cherinfo\n\n%s\n%s\n\n%s".formatted(news.title(), publishedAt, details.text());
+        return "Новость Cherinfo%n%n%s%n%s%n%n%s".formatted(news.title(), publishedAt, details.text());
     }
 }
