@@ -10,7 +10,7 @@ import static org.mockito.Mockito.verify;
 class BotMainMenuServiceTest {
 
     @Test
-    void showsShoppingListAndFullShoppingListCommands() {
+    void showsMainMenuGroups() {
         VkMessageSenderService messageSender = mock(VkMessageSenderService.class);
         BotMainMenuService service = new BotMainMenuService(messageSender);
 
@@ -18,8 +18,36 @@ class BotMainMenuServiceTest {
 
         verify(messageSender).sendPersistentKeyboard(
                 "Главное меню",
-                List.of("Новое напоминание", "Мои напоминания", "Список покупок", "Весь список покупок"),
-                List.of(2, 2)
+                List.of("Напоминания", "Покупки"),
+                List.of(2)
+        );
+    }
+
+    @Test
+    void showsReminderSubmenu() {
+        VkMessageSenderService messageSender = mock(VkMessageSenderService.class);
+        BotMainMenuService service = new BotMainMenuService(messageSender);
+
+        service.showReminderMenu();
+
+        verify(messageSender).sendPersistentKeyboard(
+                "Выберите действие с напоминаниями.",
+                List.of("Новое напоминание", "Мои напоминания", "Главное меню"),
+                List.of(2, 1)
+        );
+    }
+
+    @Test
+    void showsShoppingSubmenu() {
+        VkMessageSenderService messageSender = mock(VkMessageSenderService.class);
+        BotMainMenuService service = new BotMainMenuService(messageSender);
+
+        service.showShoppingMenu();
+
+        verify(messageSender).sendPersistentKeyboard(
+                "Выберите действие со списком покупок.",
+                List.of("Список покупок", "Добавить покупку", "Главное меню"),
+                List.of(2, 1)
         );
     }
 }
