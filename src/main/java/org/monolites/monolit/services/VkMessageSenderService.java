@@ -12,7 +12,6 @@ import com.vk.api.sdk.objects.photos.responses.PhotoUploadResponse;
 import com.vk.api.sdk.objects.photos.responses.SaveMessagesPhotoResponse;
 import com.vk.api.sdk.queries.EnumParam;
 import lombok.extern.slf4j.Slf4j;
-import org.monolites.monolit.models.exception.SendMessageException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -97,10 +96,13 @@ public class VkMessageSenderService {
     }
 
     public void sendMessage(String message, Map<String, File> images) {
+        String attachment = uploadImage(images);
+        if (attachment.isBlank()) {
+            sendMessage(message);
+            return;
+        }
+
         try {
-
-            String attachment = uploadImage(images);
-
             vk.messages()
                     .sendDeprecated(actor)
                     .randomId(RANDOM.nextInt())
@@ -111,6 +113,7 @@ public class VkMessageSenderService {
 
         } catch (ApiException | ClientException e) {
             log.error(ERROR, e.getMessage());
+            sendMessage(message);
         }
     }
 
@@ -165,32 +168,50 @@ public class VkMessageSenderService {
     }
 
     private String uploadImage(Map<String, File> images) {
+        List<SaveMessagesPhotoResponse> responses = new ArrayList<>();
+        for (Map.Entry<String, File> entry : images.entrySet()) {
+            responses.addAll(uploadMessageImage(entry.getValue()));
+        }
+        return makeStringForAttachment(responses);
+    }
+
+    private List<SaveMessagesPhotoResponse> uploadMessageImage(File image) {
         try {
-            List<SaveMessagesPhotoResponse> responses = new ArrayList<>();
-            for (Map.Entry<String, File> entry : images.entrySet()) {
-                GetMessagesUploadServerResponse serverResponse = vk.photos()
-                        .getMessagesUploadServer(actor)
-                        .execute();
-
-                PhotoUploadResponse uploadResponse = vk.upload().photo(serverResponse.getUploadUrl().toString(), entry.getValue()).execute();
-                List<SaveMessagesPhotoResponse> saveResponse = vk.photos()
-                        .saveMessagesPhoto(actor, uploadResponse.getPhoto())
-                        .server(uploadResponse.getServer())
-                        .hash(uploadResponse.getHash())
-                        .execute();
-                responses.addAll(saveResponse);
-
+            GetMessagesUploadServerResponse serverResponse = vk.photos()
+                    .getMessagesUploadServer(actor)
+                    .execute();
+            if (serverResponse.getUploadUrl() == null) {
+                log.warn("VK image upload server response does not contain upload URL for {}", image.getName());
+                return List.of();
             }
 
-            return makeStringForAttachment(responses);
-
+            PhotoUploadResponse uploadResponse = vk.upload().photo(serverResponse.getUploadUrl().toString(), image).execute();
+            if (uploadResponse.getPhoto() == null || uploadResponse.getPhoto().isBlank()) {
+                log.warn("VK image upload response does not contain photo for {}", image.getName());
+                return List.of();
+            }
+            List<SaveMessagesPhotoResponse> saveResponse = vk.photos()
+                    .saveMessagesPhoto(actor, uploadResponse.getPhoto())
+                    .server(uploadResponse.getServer())
+                    .hash(uploadResponse.getHash())
+                    .execute();
+            if (saveResponse == null || saveResponse.isEmpty()) {
+                log.warn("VK did not save uploaded image {}", image.getName());
+                return List.of();
+            }
+            return saveResponse;
         } catch (ApiException | ClientException e) {
-            log.error(ERROR, e.getMessage());
-            throw new SendMessageException(e.getMessage());
+            log.warn("Failed to upload VK message image {}: {}", image.getName(), e.getMessage());
+        } catch (RuntimeException e) {
+            log.warn("Unexpected VK image upload failure for {}: {}", image.getName(), e.getMessage());
         }
+        return List.of();
     }
 
     private String makeStringForAttachment(List<SaveMessagesPhotoResponse> saveResponse) {
+        if (saveResponse.isEmpty()) {
+            return "";
+        }
         StringBuilder sb = new StringBuilder();
         for (SaveMessagesPhotoResponse response : saveResponse) {
             sb.append(String.format("photo%d_%d,", response.getOwnerId(), response.getId()));
