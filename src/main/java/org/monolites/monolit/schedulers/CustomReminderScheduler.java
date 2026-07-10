@@ -1,7 +1,7 @@
 package org.monolites.monolit.schedulers;
 
 import lombok.RequiredArgsConstructor;
-import org.monolites.monolit.services.CustomReminderService;
+import org.monolites.monolit.services.reminder.CustomReminderService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 

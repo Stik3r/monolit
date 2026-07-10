@@ -1,7 +1,7 @@
 package org.monolites.monolit.schedulers;
 
 import org.junit.jupiter.api.Test;
-import org.monolites.monolit.services.CustomReminderService;
+import org.monolites.monolit.services.reminder.CustomReminderService;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;

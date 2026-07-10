@@ -1,6 +1,6 @@
 package org.monolites.monolit.init;
 
-import org.monolites.monolit.services.VkLongPollRunnerService;
+import org.monolites.monolit.services.vk.VkLongPollRunnerService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;

@@ -4,7 +4,7 @@ import com.vk.api.sdk.objects.callback.MessageNew;
 import lombok.RequiredArgsConstructor;
 import org.monolites.monolit.models.dtos.CustomReminderActionDto;
 import org.monolites.monolit.models.enums.CallbackPayloadType;
-import org.monolites.monolit.services.CustomReminderService;
+import org.monolites.monolit.services.reminder.CustomReminderService;
 import org.springframework.stereotype.Component;
 
 @Component

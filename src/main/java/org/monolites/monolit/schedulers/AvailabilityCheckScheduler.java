@@ -2,7 +2,7 @@ package org.monolites.monolit.schedulers;
 
 import lombok.RequiredArgsConstructor;
 import org.monolites.monolit.services.AvailabilityCheckService;
-import org.monolites.monolit.services.VkMessageSenderService;
+import org.monolites.monolit.services.vk.VkMessageSenderService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;

@@ -7,9 +7,9 @@ import com.vk.api.sdk.objects.callback.MessageObject;
 import com.vk.api.sdk.objects.messages.Message;
 import org.junit.jupiter.api.Test;
 import org.monolites.monolit.handlers.callbacks.CallbackPayloadDispatcher;
-import org.monolites.monolit.services.BotMainMenuService;
-import org.monolites.monolit.services.ReminderConversationService;
-import org.monolites.monolit.services.ShoppingListConversationService;
+import org.monolites.monolit.services.vk.BotMainMenuService;
+import org.monolites.monolit.services.reminder.ReminderConversationService;
+import org.monolites.monolit.services.shopping.ShoppingListConversationService;
 
 import static org.mockito.Mockito.*;
 

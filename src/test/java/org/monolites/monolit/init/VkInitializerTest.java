@@ -1,7 +1,7 @@
 package org.monolites.monolit.init;
 
 import org.junit.jupiter.api.Test;
-import org.monolites.monolit.services.VkLongPollRunnerService;
+import org.monolites.monolit.services.vk.VkLongPollRunnerService;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;

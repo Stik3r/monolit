@@ -1,8 +1,10 @@
-package org.monolites.monolit.services;
+package org.monolites.monolit.services.shopping;
 
 import lombok.RequiredArgsConstructor;
 import org.monolites.monolit.models.entities.ShoppingListDraft;
 import org.monolites.monolit.repositories.ShoppingListDraftRepository;
+import org.monolites.monolit.services.vk.BotMainMenuService;
+import org.monolites.monolit.services.vk.VkMessageSenderService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

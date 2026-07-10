@@ -1,4 +1,4 @@
-package org.monolites.monolit.services;
+package org.monolites.monolit.services.vk;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

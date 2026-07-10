@@ -9,6 +9,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.monolites.monolit.models.entities.ReminderCreationDraft;
 import org.monolites.monolit.models.enums.ReminderCreationStep;
 import org.monolites.monolit.repositories.ReminderCreationDraftRepository;
+import org.monolites.monolit.services.reminder.CustomReminderService;
+import org.monolites.monolit.services.reminder.ReminderConversationService;
+import org.monolites.monolit.services.vk.BotMainMenuService;
+import org.monolites.monolit.services.vk.VkMessageSenderService;
 
 import java.time.Clock;
 import java.time.Instant;

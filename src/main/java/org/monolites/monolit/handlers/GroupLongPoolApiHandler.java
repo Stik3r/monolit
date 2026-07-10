@@ -5,9 +5,9 @@ import com.vk.api.sdk.client.actors.GroupActor;
 import com.vk.api.sdk.events.longpoll.GroupLongPollApi;
 import com.vk.api.sdk.objects.callback.MessageNew;
 import org.monolites.monolit.handlers.callbacks.CallbackPayloadDispatcher;
-import org.monolites.monolit.services.BotMainMenuService;
-import org.monolites.monolit.services.ReminderConversationService;
-import org.monolites.monolit.services.ShoppingListConversationService;
+import org.monolites.monolit.services.vk.BotMainMenuService;
+import org.monolites.monolit.services.reminder.ReminderConversationService;
+import org.monolites.monolit.services.shopping.ShoppingListConversationService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 

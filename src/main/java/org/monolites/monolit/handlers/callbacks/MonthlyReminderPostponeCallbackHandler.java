@@ -6,8 +6,8 @@ import org.monolites.monolit.models.dtos.MonthlyReminderPostponeDto;
 import org.monolites.monolit.models.dtos.ReminderPostponeResult;
 import org.monolites.monolit.models.enums.CallbackPayloadType;
 import org.monolites.monolit.models.enums.ReminderPostponeAction;
-import org.monolites.monolit.services.MonthlyReminderService;
-import org.monolites.monolit.services.VkMessageSenderService;
+import org.monolites.monolit.services.reminder.MonthlyReminderService;
+import org.monolites.monolit.services.vk.VkMessageSenderService;
 import org.springframework.stereotype.Component;
 
 import java.time.format.DateTimeFormatter;

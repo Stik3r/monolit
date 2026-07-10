@@ -9,12 +9,13 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.Date;
 
 @Entity
-@Table(name = "cherinfo_news_state")
+@Table(name = "news_state")
 @Getter
 @Setter
-public class CherinfoNewsState {
+public class NewsState {
 
     @Id
     @Column(name = "state_key", nullable = false, length = 64)
@@ -23,10 +24,6 @@ public class CherinfoNewsState {
     @Column(name = "latest_news_url", length = 1024)
     private String latestNewsUrl;
 
-    @Lob
-    @Column(name = "sent_urls", nullable = false)
-    private String sentUrls;
-
-    @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
+    @Column(name = "latest_news_date")
+    private Date latestNewsDate;
 }

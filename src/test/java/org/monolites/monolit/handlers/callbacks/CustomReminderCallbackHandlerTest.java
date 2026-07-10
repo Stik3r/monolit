@@ -4,7 +4,7 @@ import com.vk.api.sdk.objects.callback.MessageNew;
 import org.junit.jupiter.api.Test;
 import org.monolites.monolit.models.dtos.CustomReminderActionDto;
 import org.monolites.monolit.models.enums.CustomReminderAction;
-import org.monolites.monolit.services.CustomReminderService;
+import org.monolites.monolit.services.reminder.CustomReminderService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;

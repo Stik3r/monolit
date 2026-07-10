@@ -1,7 +1,7 @@
 package org.monolites.monolit.init;
 
 import lombok.RequiredArgsConstructor;
-import org.monolites.monolit.services.ReminderConversationService;
+import org.monolites.monolit.services.reminder.ReminderConversationService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;

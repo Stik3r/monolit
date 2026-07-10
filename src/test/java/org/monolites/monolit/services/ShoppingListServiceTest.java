@@ -12,6 +12,9 @@ import org.monolites.monolit.models.entities.ShoppingItem;
 import org.monolites.monolit.models.enums.ShoppingItemStatus;
 import org.monolites.monolit.models.enums.ShoppingListAction;
 import org.monolites.monolit.repositories.ShoppingItemRepository;
+import org.monolites.monolit.services.shopping.ShoppingListService;
+import org.monolites.monolit.services.vk.BotMainMenuService;
+import org.monolites.monolit.services.vk.VkMessageSenderService;
 
 import java.time.Clock;
 import java.time.Instant;

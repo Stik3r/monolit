@@ -1,6 +1,8 @@
 package org.monolites.monolit.services;
 
 import org.junit.jupiter.api.Test;
+import org.monolites.monolit.services.vk.BotMainMenuService;
+import org.monolites.monolit.services.vk.VkMessageSenderService;
 
 import java.util.List;
 

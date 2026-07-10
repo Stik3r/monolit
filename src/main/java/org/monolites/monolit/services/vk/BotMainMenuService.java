@@ -1,4 +1,4 @@
-package org.monolites.monolit.services;
+package org.monolites.monolit.services.vk;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -11,6 +11,7 @@ public class BotMainMenuService {
 
     public static final String REMINDERS = "Напоминания";
     public static final String SHOPPING = "Покупки";
+    public static final String NEWS = "Новости";
     public static final String MAIN_MENU = "Главное меню";
     public static final String NEW_REMINDER = "Новое напоминание";
     public static final String MY_REMINDERS = "Мои напоминания";
@@ -20,9 +21,10 @@ public class BotMainMenuService {
 
     private static final List<String> MAIN_MENU_LABELS = List.of(
             REMINDERS,
-            SHOPPING
+            SHOPPING,
+            NEWS
     );
-    private static final List<Integer> MAIN_MENU_ROWS = List.of(2);
+    private static final List<Integer> MAIN_MENU_ROWS = List.of(2, 1);
     private static final List<String> REMINDER_MENU_LABELS = List.of(
             NEW_REMINDER,
             MY_REMINDERS,

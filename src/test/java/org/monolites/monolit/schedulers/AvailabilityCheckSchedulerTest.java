@@ -2,7 +2,7 @@ package org.monolites.monolit.schedulers;
 
 import org.junit.jupiter.api.Test;
 import org.monolites.monolit.services.AvailabilityCheckService;
-import org.monolites.monolit.services.VkMessageSenderService;
+import org.monolites.monolit.services.vk.VkMessageSenderService;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.mockito.Mockito.mock;

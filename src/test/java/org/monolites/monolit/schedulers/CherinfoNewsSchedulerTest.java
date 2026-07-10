@@ -1,7 +1,7 @@
 package org.monolites.monolit.schedulers;
 
 import org.junit.jupiter.api.Test;
-import org.monolites.monolit.services.CherinfoNewsService;
+import org.monolites.monolit.services.NewsService;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -11,8 +11,8 @@ class CherinfoNewsSchedulerTest {
 
     @Test
     void delegatesStartupAndHourlyPublication() {
-        CherinfoNewsService service = mock(CherinfoNewsService.class);
-        CherinfoNewsScheduler scheduler = new CherinfoNewsScheduler(service);
+        NewsService service = mock(NewsService.class);
+        NewsScheduler scheduler = new NewsScheduler(service);
 
         scheduler.publishNewsOnStartup();
         scheduler.publishNewsHourly();

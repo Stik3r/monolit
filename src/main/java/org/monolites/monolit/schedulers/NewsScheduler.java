@@ -1,7 +1,7 @@
 package org.monolites.monolit.schedulers;
 
 import lombok.RequiredArgsConstructor;
-import org.monolites.monolit.services.CherinfoNewsService;
+import org.monolites.monolit.services.NewsService;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -9,17 +9,17 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class CherinfoNewsScheduler {
+public class NewsScheduler {
 
-    private final CherinfoNewsService cherinfoNewsService;
+    private final NewsService newsService;
 
     @EventListener(ApplicationReadyEvent.class)
     public void publishNewsOnStartup() {
-        cherinfoNewsService.publishLatestNews();
+        newsService.publishLatestNews();
     }
 
     @Scheduled(cron = "${monolit.news.cherinfo.cron}", zone = "${monolit.reminders.zone}")
     public void publishNewsHourly() {
-        cherinfoNewsService.publishLatestNews();
+        newsService.publishLatestNews();
     }
 }

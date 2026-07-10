@@ -21,6 +21,7 @@ import com.vk.api.sdk.queries.photos.PhotosSaveMessagesPhotoQuery;
 import com.vk.api.sdk.queries.upload.UploadPhotoQuery;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.monolites.monolit.services.vk.VkMessageSenderService;
 
 import java.io.File;
 import java.net.URI;

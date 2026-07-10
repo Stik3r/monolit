@@ -4,8 +4,8 @@ import com.vk.api.sdk.objects.callback.MessageNew;
 import lombok.RequiredArgsConstructor;
 import org.monolites.monolit.models.dtos.ShoppingListActionDto;
 import org.monolites.monolit.models.enums.CallbackPayloadType;
-import org.monolites.monolit.services.ShoppingListConversationService;
-import org.monolites.monolit.services.ShoppingListService;
+import org.monolites.monolit.services.shopping.ShoppingListConversationService;
+import org.monolites.monolit.services.shopping.ShoppingListService;
 import org.springframework.stereotype.Component;
 
 @Component

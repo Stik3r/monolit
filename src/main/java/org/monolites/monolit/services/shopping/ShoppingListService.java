@@ -1,4 +1,4 @@
-package org.monolites.monolit.services;
+package org.monolites.monolit.services.shopping;
 
 import com.vk.api.sdk.queries.EnumParam;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +9,8 @@ import org.monolites.monolit.models.enums.CallbackPayloadType;
 import org.monolites.monolit.models.enums.ShoppingItemStatus;
 import org.monolites.monolit.models.enums.ShoppingListAction;
 import org.monolites.monolit.repositories.ShoppingItemRepository;
+import org.monolites.monolit.services.vk.BotMainMenuService;
+import org.monolites.monolit.services.vk.VkMessageSenderService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

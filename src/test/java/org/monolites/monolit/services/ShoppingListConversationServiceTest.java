@@ -8,6 +8,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.monolites.monolit.models.entities.ShoppingListDraft;
 import org.monolites.monolit.repositories.ShoppingListDraftRepository;
+import org.monolites.monolit.services.shopping.ShoppingListConversationService;
+import org.monolites.monolit.services.shopping.ShoppingListService;
+import org.monolites.monolit.services.vk.BotMainMenuService;
+import org.monolites.monolit.services.vk.VkMessageSenderService;
 
 import java.util.List;
 import java.util.Optional;

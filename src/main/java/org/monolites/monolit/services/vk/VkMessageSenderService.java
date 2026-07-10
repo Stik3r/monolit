@@ -1,4 +1,4 @@
-package org.monolites.monolit.services;
+package org.monolites.monolit.services.vk;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,12 +11,14 @@ import com.vk.api.sdk.objects.photos.responses.GetMessagesUploadServerResponse;
 import com.vk.api.sdk.objects.photos.responses.PhotoUploadResponse;
 import com.vk.api.sdk.objects.photos.responses.SaveMessagesPhotoResponse;
 import com.vk.api.sdk.queries.EnumParam;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.util.*;
 
 import static com.vk.api.sdk.objects.messages.KeyboardButtonActionCallbackType.CALLBACK;
@@ -31,8 +33,9 @@ import static com.vk.api.sdk.objects.messages.KeyboardButtonActionVkpayType.VKPA
 public class VkMessageSenderService {
 
     private static final Random RANDOM = new SecureRandom();
-
     private static final String ERROR = "Ошибка отправки сообщения {}";
+    private static final Duration UPLOAD_DELAY = Duration.ofMillis(200);
+
 
     private final VkApiClient vk;
     private final GroupActor actor;
@@ -167,10 +170,12 @@ public class VkMessageSenderService {
         }
     }
 
+    @SneakyThrows
     private String uploadImage(Map<String, File> images) {
         List<SaveMessagesPhotoResponse> responses = new ArrayList<>();
         for (Map.Entry<String, File> entry : images.entrySet()) {
             responses.addAll(uploadMessageImage(entry.getValue()));
+            Thread.sleep(UPLOAD_DELAY);
         }
         return makeStringForAttachment(responses);
     }

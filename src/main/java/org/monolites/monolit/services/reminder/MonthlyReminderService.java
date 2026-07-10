@@ -1,4 +1,4 @@
-package org.monolites.monolit.services;
+package org.monolites.monolit.services.reminder;
 
 import com.vk.api.sdk.queries.EnumParam;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +12,7 @@ import org.monolites.monolit.models.enums.ReminderPostponeAction;
 import org.monolites.monolit.models.enums.ReminderPostponementType;
 import org.monolites.monolit.models.enums.ReminderType;
 import org.monolites.monolit.repositories.MonthlyReminderRepository;
+import org.monolites.monolit.services.vk.VkMessageSenderService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

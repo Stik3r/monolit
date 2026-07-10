@@ -11,6 +11,9 @@ import org.monolites.monolit.models.entities.CustomReminder;
 import org.monolites.monolit.models.enums.CustomReminderAction;
 import org.monolites.monolit.models.enums.CustomReminderStatus;
 import org.monolites.monolit.repositories.CustomReminderRepository;
+import org.monolites.monolit.services.reminder.CustomReminderService;
+import org.monolites.monolit.services.vk.BotMainMenuService;
+import org.monolites.monolit.services.vk.VkMessageSenderService;
 
 import java.time.Clock;
 import java.time.Instant;
