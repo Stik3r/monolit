@@ -35,7 +35,7 @@ public class CherinfoNewsService {
     private final CherinfoNewsImageDownloader imageDownloader;
     private final CherinfoNewsStateRepository newsStateRepository;
     private final VkMessageSenderService messageSender;
-    private final Clock reminderClock;
+    private final Clock newsClock;
 
     public synchronized void publishLatestNews() {
         Optional<List<NewsItem>> fetchedNewsOptional = fetchNews();
@@ -134,7 +134,7 @@ public class CherinfoNewsService {
                     state.setStateKey(CHERINFO_STATE_KEY);
                     state.setLatestNewsUrl("");
                     state.setSentUrls("");
-                    state.setUpdatedAt(reminderClock.instant());
+                    state.setUpdatedAt(newsClock.instant());
                     return state;
                 });
     }
@@ -190,7 +190,7 @@ public class CherinfoNewsService {
         }
         state.setSentUrls(String.join("\n", urls));
         state.setLatestNewsUrl(url);
-        state.setUpdatedAt(reminderClock.instant());
+        state.setUpdatedAt(newsClock.instant());
     }
 
     private void sendNewsMessages(String message, List<File> imageFiles) {
