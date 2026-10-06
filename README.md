@@ -30,6 +30,28 @@ Long Poll включён свойством `monolit.vk.long-poll.enabled=true`.
 использует `ddl-auto=update`; удаление старых Java-сущностей не удаляет физические
 таблицы и данные существующей БД.
 
+## Sonar CI
+
+Workflow `.github/workflows/sonarqube.yml` запускается при push в `main` и
+pull request в `main`. Он собирает проект с тестами и JaCoCo, выполняет анализ
+SonarQube Cloud и ждёт Quality Gate. Отчёты тестов и покрытия сохраняются
+в artifact `quality-reports`, затем каталог `target` удаляется на runner.
+
+В GitHub Settings → Secrets and variables → Actions задайте:
+
+| Тип | Имя | Значение |
+| --- | --- | --- |
+| Repository secret | `SONAR_TOKEN` | Токен с доступом к проекту SonarQube Cloud |
+| Repository variable | `SONAR_ORGANIZATION` | `stik3r-1` |
+| Repository variable | `SONAR_PROJECT_KEY` | `Stik3r_monolit` |
+
+Отсутствующие настройки останавливают шаг анализа с сообщением об ошибке.
+Анализ pull request из fork требует недоступного ему секрета и завершится ошибкой.
+Workflow перенесён из `CLI-to-chat-chatgpt`: команда сборки использует
+`-Dmaven.test.failure.ignore=true`, поэтому ошибки тестов сами по себе не
+останавливают Maven; итоговый статус зависит от последующих шагов и Quality Gate.
+Для локальной проверки без игнорирования ошибок используйте `mvn -B clean verify`.
+
 ## License
 
 This repository is distributed under the **PolyForm Noncommercial License 1.0.0**.

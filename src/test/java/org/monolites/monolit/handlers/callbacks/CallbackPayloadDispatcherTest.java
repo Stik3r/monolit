@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class CallbackPayloadDispatcherTest {
 
@@ -34,9 +35,9 @@ class CallbackPayloadDispatcherTest {
     @Test
     void discoversHandlerBeanAndDispatchesItsTypedData() {
         TestPayloadHandler handler = mock(TestPayloadHandler.class);
-        org.mockito.Mockito.when(handler.type()).thenReturn("test_action");
-        org.mockito.Mockito.when(handler.version()).thenReturn(1);
-        org.mockito.Mockito.when(handler.payloadClass()).thenReturn(TestPayload.class);
+        when(handler.type()).thenReturn("test_action");
+        when(handler.version()).thenReturn(1);
+        when(handler.payloadClass()).thenReturn(TestPayload.class);
         MessageNew event = mock(MessageNew.class);
 
         new ApplicationContextRunner()
@@ -55,9 +56,9 @@ class CallbackPayloadDispatcherTest {
     void dispatchesKnownPayloadToMatchingHandler() {
         TestPayloadHandler handler = mock(TestPayloadHandler.class);
         MessageNew event = mock(MessageNew.class);
-        org.mockito.Mockito.when(handler.type()).thenReturn("test_action");
-        org.mockito.Mockito.when(handler.version()).thenReturn(1);
-        org.mockito.Mockito.when(handler.payloadClass()).thenReturn(TestPayload.class);
+        when(handler.type()).thenReturn("test_action");
+        when(handler.version()).thenReturn(1);
+        when(handler.payloadClass()).thenReturn(TestPayload.class);
         CallbackPayloadDispatcher dispatcher = new CallbackPayloadDispatcher(objectMapper, List.of(handler));
 
         dispatcher.dispatch("""
@@ -70,9 +71,9 @@ class CallbackPayloadDispatcherTest {
     @Test
     void ignoresInvalidJsonAndUnknownRoutes() {
         TestPayloadHandler handler = mock(TestPayloadHandler.class);
-        org.mockito.Mockito.when(handler.type()).thenReturn("test_action");
-        org.mockito.Mockito.when(handler.version()).thenReturn(1);
-        org.mockito.Mockito.when(handler.payloadClass()).thenReturn(TestPayload.class);
+        when(handler.type()).thenReturn("test_action");
+        when(handler.version()).thenReturn(1);
+        when(handler.payloadClass()).thenReturn(TestPayload.class);
         CallbackPayloadDispatcher dispatcher = new CallbackPayloadDispatcher(objectMapper, List.of(handler));
 
         dispatcher.dispatch("not-json", mock(MessageNew.class));
@@ -86,9 +87,9 @@ class CallbackPayloadDispatcherTest {
     @Test
     void ignoresPayloadConversionErrors() {
         TestPayloadHandler handler = mock(TestPayloadHandler.class);
-        org.mockito.Mockito.when(handler.type()).thenReturn("test_action");
-        org.mockito.Mockito.when(handler.version()).thenReturn(1);
-        org.mockito.Mockito.when(handler.payloadClass()).thenReturn(TestPayload.class);
+        when(handler.type()).thenReturn("test_action");
+        when(handler.version()).thenReturn(1);
+        when(handler.payloadClass()).thenReturn(TestPayload.class);
         CallbackPayloadDispatcher dispatcher = new CallbackPayloadDispatcher(objectMapper, List.of(handler));
 
         dispatcher.dispatch("""
@@ -102,10 +103,10 @@ class CallbackPayloadDispatcherTest {
     void rejectsDuplicateHandlerRoutes() {
         TestPayloadHandler first = mock(TestPayloadHandler.class);
         TestPayloadHandler second = mock(TestPayloadHandler.class);
-        org.mockito.Mockito.when(first.type()).thenReturn("test_action");
-        org.mockito.Mockito.when(first.version()).thenReturn(1);
-        org.mockito.Mockito.when(second.type()).thenReturn("test_action");
-        org.mockito.Mockito.when(second.version()).thenReturn(1);
+        when(first.type()).thenReturn("test_action");
+        when(first.version()).thenReturn(1);
+        when(second.type()).thenReturn("test_action");
+        when(second.version()).thenReturn(1);
         List<CallbackPayloadHandler<?>> handlers = List.of(first, second);
 
         assertThatThrownBy(() -> dispatcherWith(handlers))
