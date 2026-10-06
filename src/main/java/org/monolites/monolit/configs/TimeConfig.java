@@ -11,7 +11,7 @@ import java.time.ZoneId;
 public class TimeConfig {
 
     @Bean
-    public Clock reminderClock(@Value("${monolit.reminders.zone}") String zone) {
+    public Clock newsClock(@Value("${monolit.news.zone}") String zone) {
         return Clock.system(ZoneId.of(zone));
     }
 }

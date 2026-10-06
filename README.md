@@ -1,6 +1,56 @@
 # monolit
 
-`monolit` is a Spring Boot project.
+`monolit` — каркас Spring Boot-приложения с VK Long Poll, клавиатурами,
+маршрутизацией действий по payload и отправкой текста и фотографий.
+Сохранён новостной функционал Cherinfo: RSS, полный текст статей и изображения.
+
+## Проверка и запуск
+
+Требуются Java 21, Maven и PostgreSQL. Сборка с тестами: `mvn -B clean verify`.
+Для запуска задайте `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`,
+`SPRING_DATASOURCE_PASSWORD`, `VK_GROUP_ID`, `VK_GROUP_TOKEN` и `VK_MY_ID`.
+Запуск: `mvn spring-boot:run` или
+`java -jar target/monolit-0.0.1-SNAPSHOT.jar`.
+
+Long Poll включён свойством `monolit.vk.long-poll.enabled=true`. Входящие
+сообщения принимаются только от `VK_MY_ID`. Payload кнопки содержит `type`,
+`version` и `data`; `CallbackPayloadDispatcher` выбирает Spring bean
+`CallbackPayloadHandler<T>` по типу и версии, преобразует данные в DTO и вызывает
+обработчик. Конкретных обработчиков бизнес-действий и меню в каркасе нет.
+Сообщения без payload не запускают действий; неизвестные payload-маршруты
+логируются. Механизм построения постоянных и inline-клавиатур сохранён.
+
+Автоматическая публикация Cherinfo отключена:
+`monolit.news.cherinfo.enabled=false`. Это отключает и cron, и публикацию при
+старте. Для включения задайте `MONOLIT_NEWS_CHERINFO_ENABLED=true`.
+Расписание — `monolit.news.cherinfo.cron`, зона — `monolit.news.zone`
+(`Europe/Moscow`). Состояние ленты хранится в `CherinfoNewsState` в PostgreSQL.
+
+Подключение к БД и VK требуется даже при отключённых новостях. Hibernate
+использует `ddl-auto=update`; удаление старых Java-сущностей не удаляет физические
+таблицы и данные существующей БД.
+
+## Sonar CI
+
+Workflow `.github/workflows/sonarqube.yml` запускается при push в `main` и
+pull request в `main`. Он собирает проект с тестами и JaCoCo, выполняет анализ
+SonarQube Cloud и ждёт Quality Gate. Отчёты тестов и покрытия сохраняются
+в artifact `quality-reports`, затем каталог `target` удаляется на runner.
+
+В GitHub Settings → Secrets and variables → Actions задайте:
+
+| Тип | Имя | Значение |
+| --- | --- | --- |
+| Repository secret | `SONAR_TOKEN` | Токен с доступом к проекту SonarQube Cloud |
+| Repository variable | `SONAR_ORGANIZATION` | `stik3r-1` |
+| Repository variable | `SONAR_PROJECT_KEY` | `Stik3r_monolit` |
+
+Отсутствующие настройки останавливают шаг анализа с сообщением об ошибке.
+Анализ pull request из fork требует недоступного ему секрета и завершится ошибкой.
+Workflow перенесён из `CLI-to-chat-chatgpt`: команда сборки использует
+`-Dmaven.test.failure.ignore=true`, поэтому ошибки тестов сами по себе не
+останавливают Maven; итоговый статус зависит от последующих шагов и Quality Gate.
+Для локальной проверки без игнорирования ошибок используйте `mvn -B clean verify`.
 
 ## License
 

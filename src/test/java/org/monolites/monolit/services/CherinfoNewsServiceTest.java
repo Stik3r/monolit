@@ -10,7 +10,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.monolites.monolit.models.dtos.NewsDetails;
 import org.monolites.monolit.models.dtos.NewsItem;
 import org.monolites.monolit.models.entities.CherinfoNewsState;
-import org.monolites.monolit.models.exception.SendMessageException;
 import org.monolites.monolit.repositories.CherinfoNewsStateRepository;
 
 import java.io.File;
@@ -344,7 +343,7 @@ class CherinfoNewsServiceTest {
         when(newsClient.fetchNewsDetails(news.url())).thenReturn(details(news));
         when(newsStateRepository.findById("cherinfo")).thenReturn(Optional.empty());
         when(imageDownloader.downloadImages(anyList())).thenReturn(List.of(imageFile.toFile()));
-        doThrow(new SendMessageException("photo is undefined"))
+        doThrow(new IllegalStateException("photo is undefined"))
                 .when(messageSender).sendMessage(anyString(), anyMap());
         ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
 

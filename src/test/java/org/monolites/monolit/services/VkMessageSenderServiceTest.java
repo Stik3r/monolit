@@ -95,7 +95,7 @@ class VkMessageSenderServiceTest {
     }
 
     @Test
-    void buildsDoneButtonAndFivePostponeButtonsInSeparateRows() throws Exception {
+    void buildsButtonsInConfiguredRows() throws Exception {
         VkMessageSenderService service = new VkMessageSenderService(
                 mock(VkApiClient.class),
                 mock(GroupActor.class),
@@ -105,8 +105,8 @@ class VkMessageSenderServiceTest {
 
         Keyboard keyboard = service.buildKeyboard(
                 List.of(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT),
-                List.of("Передал", "10 минут", "1 час", "3 часа", "12 часов", "Не напоминать сегодня"),
-                List.of("done", "10m", "1h", "3h", "12h", "today"),
+                List.of("First", "Second", "Third", "Fourth", "Fifth", "Sixth"),
+                List.of("first", "second", "third", "fourth", "fifth", "sixth"),
                 List.of(1, 5),
                 true
         );
@@ -169,7 +169,7 @@ class VkMessageSenderServiceTest {
 
         Keyboard keyboard = service.buildKeyboard(
                 List.of(TEXT, TEXT),
-                List.of("Новое напоминание", "Мои напоминания"),
+                List.of("First", "Second"),
                 java.util.Arrays.asList(null, null),
                 List.of(2),
                 false

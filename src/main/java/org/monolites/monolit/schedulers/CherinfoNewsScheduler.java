@@ -2,6 +2,7 @@ package org.monolites.monolit.schedulers;
 
 import lombok.RequiredArgsConstructor;
 import org.monolites.monolit.services.CherinfoNewsService;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "monolit.news.cherinfo.enabled", havingValue = "true")
 public class CherinfoNewsScheduler {
 
     private final CherinfoNewsService cherinfoNewsService;
@@ -18,7 +20,7 @@ public class CherinfoNewsScheduler {
         cherinfoNewsService.publishLatestNews();
     }
 
-    @Scheduled(cron = "${monolit.news.cherinfo.cron}", zone = "${monolit.reminders.zone}")
+    @Scheduled(cron = "${monolit.news.cherinfo.cron}", zone = "${monolit.news.zone}")
     public void publishNewsHourly() {
         cherinfoNewsService.publishLatestNews();
     }

@@ -4,231 +4,111 @@ import com.vk.api.sdk.client.VkApiClient;
 import com.vk.api.sdk.client.actors.GroupActor;
 import com.vk.api.sdk.objects.callback.MessageNew;
 import com.vk.api.sdk.objects.callback.MessageObject;
+import com.vk.api.sdk.objects.messages.KeyboardButtonActionText;
 import com.vk.api.sdk.objects.messages.Message;
 import org.junit.jupiter.api.Test;
+import org.monolites.monolit.configs.JacksonConfig;
 import org.monolites.monolit.handlers.callbacks.CallbackPayloadDispatcher;
-import org.monolites.monolit.services.BotMainMenuService;
-import org.monolites.monolit.services.ReminderConversationService;
-import org.monolites.monolit.services.ShoppingListConversationService;
+import org.monolites.monolit.handlers.callbacks.CallbackPayloadHandler;
+import org.monolites.monolit.models.dtos.callback.CallbackPayloadEnvelope;
+import org.monolites.monolit.services.VkMessageSenderService;
 
+import java.util.List;
+
+import static com.vk.api.sdk.objects.messages.KeyboardButtonActionTextType.TEXT;
 import static org.mockito.Mockito.*;
 
 class GroupLongPoolApiHandlerTest {
 
     @Test
-    void ignoresMessagesFromUsersOtherThanConfiguredOwner() {
+    void ignoresPayloadFromUsersOtherThanConfiguredOwner() {
         CallbackPayloadDispatcher dispatcher = mock(CallbackPayloadDispatcher.class);
-        BotMainMenuService mainMenuService = mock(BotMainMenuService.class);
-        ReminderConversationService conversationService = mock(ReminderConversationService.class);
-        ShoppingListConversationService shoppingListConversationService = mock(ShoppingListConversationService.class);
-        GroupLongPoolApiHandler handler = handler(
-                dispatcher,
-                mainMenuService,
-                conversationService,
-                shoppingListConversationService
-        );
 
-        handler.messageNew(1, event(99L, "Новое напоминание", null));
+        handler(dispatcher).messageNew(1, event(99L, "Action", "{\"type\":\"test_action\"}"));
 
-        verifyNoInteractions(dispatcher, mainMenuService, conversationService);
-        verifyNoInteractions(shoppingListConversationService);
-    }
-
-    @Test
-    void routesOwnerPayloadBeforePlainTextConversation() {
-        CallbackPayloadDispatcher dispatcher = mock(CallbackPayloadDispatcher.class);
-        BotMainMenuService mainMenuService = mock(BotMainMenuService.class);
-        ReminderConversationService conversationService = mock(ReminderConversationService.class);
-        ShoppingListConversationService shoppingListConversationService = mock(ShoppingListConversationService.class);
-        GroupLongPoolApiHandler handler = handler(
-                dispatcher,
-                mainMenuService,
-                conversationService,
-                shoppingListConversationService
-        );
-        MessageNew event = event(42L, "10 минут", "{\"type\":\"monthly_reminder_postpone\"}");
-
-        handler.messageNew(1, event);
-
-        verify(dispatcher).dispatch("{\"type\":\"monthly_reminder_postpone\"}", event);
-        verifyNoInteractions(mainMenuService);
-        verifyNoInteractions(conversationService);
-        verifyNoInteractions(shoppingListConversationService);
-    }
-
-    @Test
-    void routesOwnerPlainTextToReminderConversation() {
-        CallbackPayloadDispatcher dispatcher = mock(CallbackPayloadDispatcher.class);
-        BotMainMenuService mainMenuService = mock(BotMainMenuService.class);
-        ReminderConversationService conversationService = mock(ReminderConversationService.class);
-        ShoppingListConversationService shoppingListConversationService = mock(ShoppingListConversationService.class);
-        GroupLongPoolApiHandler handler = handler(
-                dispatcher,
-                mainMenuService,
-                conversationService,
-                shoppingListConversationService
-        );
-        when(conversationService.handle("Новое напоминание")).thenReturn(true);
-
-        handler.messageNew(1, event(42L, "Новое напоминание", null));
-
-        verify(conversationService).handle("Новое напоминание");
-        verify(shoppingListConversationService, never()).handle(anyString());
-        verifyNoInteractions(mainMenuService);
         verifyNoInteractions(dispatcher);
     }
 
     @Test
-    void routesReminderGroupToReminderSubmenu() {
+    void routesOwnerPayloadToDispatcher() {
         CallbackPayloadDispatcher dispatcher = mock(CallbackPayloadDispatcher.class);
-        BotMainMenuService mainMenuService = mock(BotMainMenuService.class);
-        ReminderConversationService conversationService = mock(ReminderConversationService.class);
-        ShoppingListConversationService shoppingListConversationService = mock(ShoppingListConversationService.class);
-        GroupLongPoolApiHandler handler = handler(
-                dispatcher,
-                mainMenuService,
-                conversationService,
-                shoppingListConversationService
-        );
+        String payload = "{\"type\":\"test_action\",\"version\":1,\"data\":{\"id\":7}}";
+        MessageNew event = event(42L, "Action", payload);
 
-        handler.messageNew(1, event(42L, "Напоминания", null));
+        handler(dispatcher).messageNew(1, event);
 
-        verify(mainMenuService).showReminderMenu();
-        verify(conversationService, never()).handle(anyString());
-        verify(shoppingListConversationService, never()).handle(anyString());
+        verify(dispatcher).dispatch(payload, event);
+    }
+
+    @Test
+    void ignoresMessagesWithoutSender() {
+        CallbackPayloadDispatcher dispatcher = mock(CallbackPayloadDispatcher.class);
+
+        handler(dispatcher).messageNew(1, event(null, "Action", "{}"));
+
         verifyNoInteractions(dispatcher);
     }
 
     @Test
-    void routesShoppingGroupToShoppingSubmenu() {
+    void ignoresIncompleteEvents() {
         CallbackPayloadDispatcher dispatcher = mock(CallbackPayloadDispatcher.class);
-        BotMainMenuService mainMenuService = mock(BotMainMenuService.class);
-        ReminderConversationService conversationService = mock(ReminderConversationService.class);
-        ShoppingListConversationService shoppingListConversationService = mock(ShoppingListConversationService.class);
-        GroupLongPoolApiHandler handler = handler(
-                dispatcher,
-                mainMenuService,
-                conversationService,
-                shoppingListConversationService
-        );
+        GroupLongPoolApiHandler handler = handler(dispatcher);
 
-        handler.messageNew(1, event(42L, "Покупки", null));
+        handler.messageNew(1, null);
+        handler.messageNew(1, new MessageNew());
+        handler.messageNew(1, new MessageNew().setObject(new MessageObject()));
 
-        verify(mainMenuService).showShoppingMenu();
-        verify(conversationService, never()).handle(anyString());
-        verify(shoppingListConversationService, never()).handle(anyString());
         verifyNoInteractions(dispatcher);
     }
 
     @Test
-    void routesBackToMainMenuWithoutBusinessActions() {
+    void doesNotDispatchPlainTextOrBlankPayload() {
         CallbackPayloadDispatcher dispatcher = mock(CallbackPayloadDispatcher.class);
-        BotMainMenuService mainMenuService = mock(BotMainMenuService.class);
-        ReminderConversationService conversationService = mock(ReminderConversationService.class);
-        ShoppingListConversationService shoppingListConversationService = mock(ShoppingListConversationService.class);
-        GroupLongPoolApiHandler handler = handler(
-                dispatcher,
-                mainMenuService,
-                conversationService,
-                shoppingListConversationService
-        );
+        GroupLongPoolApiHandler handler = handler(dispatcher);
 
-        handler.messageNew(1, event(42L, "Главное меню", null));
+        handler.messageNew(1, event(42L, "Text", null));
+        handler.messageNew(1, event(42L, "Text", ""));
+        handler.messageNew(1, event(42L, "Text", "  "));
 
-        verify(mainMenuService).show("Главное меню");
-        verify(conversationService, never()).handle(anyString());
-        verify(shoppingListConversationService, never()).handle(anyString());
         verifyNoInteractions(dispatcher);
     }
 
     @Test
-    void routesActiveReminderConversationBeforeShoppingConversation() {
-        CallbackPayloadDispatcher dispatcher = mock(CallbackPayloadDispatcher.class);
-        BotMainMenuService mainMenuService = mock(BotMainMenuService.class);
-        ReminderConversationService conversationService = mock(ReminderConversationService.class);
-        ShoppingListConversationService shoppingListConversationService = mock(ShoppingListConversationService.class);
-        GroupLongPoolApiHandler handler = handler(
-                dispatcher,
-                mainMenuService,
-                conversationService,
-                shoppingListConversationService
+    void routesSerializedKeyboardPayloadToRegisteredHandler() throws Exception {
+        var objectMapper = new JacksonConfig().objectMapper();
+        TestPayloadHandler actionHandler = mock(TestPayloadHandler.class);
+        when(actionHandler.type()).thenReturn("test_action");
+        when(actionHandler.version()).thenReturn(1);
+        when(actionHandler.payloadClass()).thenReturn(TestPayload.class);
+        CallbackPayloadDispatcher dispatcher = new CallbackPayloadDispatcher(objectMapper, List.of(actionHandler));
+        VkMessageSenderService sender = new VkMessageSenderService(
+                mock(VkApiClient.class), mock(GroupActor.class), objectMapper, "42"
         );
-        when(conversationService.isActive()).thenReturn(true);
+        var keyboard = sender.buildKeyboard(
+                List.of(TEXT), List.of("Action"),
+                List.of(new CallbackPayloadEnvelope("test_action", 1, new TestPayload(7))), true
+        );
+        String payload = ((KeyboardButtonActionText) keyboard.getButtons().getFirst().getFirst().getAction())
+                .getPayload();
+        MessageNew event = event(42L, "Action", payload);
 
-        handler.messageNew(1, event(42L, "Покупки", null));
+        handler(dispatcher).messageNew(1, event);
 
-        verify(conversationService).handle("Покупки");
-        verifyNoInteractions(mainMenuService);
-        verifyNoInteractions(dispatcher);
-        verify(shoppingListConversationService, never()).handle(anyString());
+        verify(actionHandler).handle(new TestPayload(7), event);
     }
 
-    @Test
-    void routesActiveShoppingConversationBeforeMainMenuCommands() {
-        CallbackPayloadDispatcher dispatcher = mock(CallbackPayloadDispatcher.class);
-        BotMainMenuService mainMenuService = mock(BotMainMenuService.class);
-        ReminderConversationService conversationService = mock(ReminderConversationService.class);
-        ShoppingListConversationService shoppingListConversationService = mock(ShoppingListConversationService.class);
-        GroupLongPoolApiHandler handler = handler(
-                dispatcher,
-                mainMenuService,
-                conversationService,
-                shoppingListConversationService
-        );
-        when(shoppingListConversationService.isActive()).thenReturn(true);
-
-        handler.messageNew(1, event(42L, "Главное меню", null));
-
-        verify(shoppingListConversationService).handle("Главное меню");
-        verifyNoInteractions(mainMenuService);
-        verify(conversationService, never()).handle(anyString());
-        verifyNoInteractions(dispatcher);
+    private GroupLongPoolApiHandler handler(CallbackPayloadDispatcher dispatcher) {
+        return new GroupLongPoolApiHandler(mock(VkApiClient.class), mock(GroupActor.class), dispatcher, "42");
     }
 
-    @Test
-    void routesUnrecognizedTextToShoppingConversationAfterReminderConversation() {
-        CallbackPayloadDispatcher dispatcher = mock(CallbackPayloadDispatcher.class);
-        BotMainMenuService mainMenuService = mock(BotMainMenuService.class);
-        ReminderConversationService conversationService = mock(ReminderConversationService.class);
-        ShoppingListConversationService shoppingListConversationService = mock(ShoppingListConversationService.class);
-        GroupLongPoolApiHandler handler = handler(
-                dispatcher,
-                mainMenuService,
-                conversationService,
-                shoppingListConversationService
-        );
-        when(conversationService.handle("Список покупок")).thenReturn(false);
-
-        handler.messageNew(1, event(42L, "Список покупок", null));
-
-        verify(conversationService).handle("Список покупок");
-        verify(shoppingListConversationService).handle("Список покупок");
-        verifyNoInteractions(mainMenuService);
-        verifyNoInteractions(dispatcher);
-    }
-
-    private GroupLongPoolApiHandler handler(
-            CallbackPayloadDispatcher dispatcher,
-            BotMainMenuService mainMenuService,
-            ReminderConversationService conversationService,
-            ShoppingListConversationService shoppingListConversationService
-    ) {
-        return new GroupLongPoolApiHandler(
-                mock(VkApiClient.class),
-                mock(GroupActor.class),
-                dispatcher,
-                mainMenuService,
-                conversationService,
-                shoppingListConversationService,
-                "42"
-        );
-    }
-
-    private MessageNew event(long fromId, String text, String payload) {
-        Message message = new Message()
-                .setFromId(fromId)
-                .setText(text)
-                .setPayload(payload);
+    private MessageNew event(Long fromId, String text, String payload) {
+        Message message = new Message().setFromId(fromId).setText(text).setPayload(payload);
         return new MessageNew().setObject(new MessageObject().setMessage(message));
+    }
+
+    private record TestPayload(long id) {
+    }
+
+    private interface TestPayloadHandler extends CallbackPayloadHandler<TestPayload> {
     }
 }

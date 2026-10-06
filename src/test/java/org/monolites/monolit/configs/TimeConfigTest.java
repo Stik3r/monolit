@@ -10,8 +10,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TimeConfigTest {
 
     @Test
-    void createsClockForConfiguredReminderZone() {
-        Clock clock = new TimeConfig().reminderClock("Europe/Moscow");
+    void createsClockForConfiguredNewsZone() {
+        Clock clock = new TimeConfig().newsClock("Europe/Moscow");
 
         assertThat(clock.getZone()).isEqualTo(ZoneId.of("Europe/Moscow"));
     }
