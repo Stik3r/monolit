@@ -4,6 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: monolit
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://infra-postgres:5432/monolit
       SPRING_DATASOURCE_USERNAME: monolit
