@@ -1,0 +1,34 @@
+services:
+  monolit:
+    image: monolit:${DEPLOY_SHA:?Set DEPLOY_SHA to the commit SHA}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://infra-postgres:5432/monolit
+      SPRING_DATASOURCE_USERNAME: monolit
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:?Set SPRING_DATASOURCE_PASSWORD}
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
+      VK_GROUP_ID: ${VK_GROUP_ID:?Set VK_GROUP_ID}
+      VK_GROUP_TOKEN: ${VK_GROUP_TOKEN:?Set VK_GROUP_TOKEN}
+      VK_MY_ID: ${VK_MY_ID:?Set VK_MY_ID}
+      MONOLIT_NEWS_CHERINFO_ENABLED: "false"
+    networks:
+      - database
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-T", "2", "-O", "/dev/null", "http://127.0.0.1:8080/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  database:
+    external: true
+    name: ${POSTGRES_NETWORK:-infra-db}
